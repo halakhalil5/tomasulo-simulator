@@ -15,7 +15,7 @@ public class Memory {
 
     public Memory() {
         memory = new double[MEMORY_SIZE];
-         memory[32] = 1.0;
+        
     }
 
     public double load(int address) {
