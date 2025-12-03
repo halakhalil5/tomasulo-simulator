@@ -12,8 +12,8 @@ public class Config {
     // Instruction latencies (in cycles)
     public int addLatency = 2;
     public int subLatency = 2;
-    public int mulLatency = 10;
-    public int divLatency = 40;
+    public int mulLatency = 3;
+    public int divLatency = 4;
     public int loadLatency = 2;
     public int storeLatency = 2;
     public int intAddLatency = 1;
@@ -24,7 +24,7 @@ public class Config {
     public int cacheSize = 256; // in bytes
     public int blockSize = 16; // in bytes
     public int cacheHitLatency = 1;
-    public int cacheMissPenalty = 50;
+    public int cacheMissPenalty = 3;
 
     // Register file configuration
     public int numIntegerRegisters = 32;

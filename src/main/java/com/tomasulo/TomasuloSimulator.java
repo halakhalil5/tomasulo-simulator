@@ -209,7 +209,7 @@ public class TomasuloSimulator extends Application {
         panel.setAlignment(Pos.CENTER_LEFT);
         panel.setPadding(new Insets(10));
 
-        cycleLabel = new Label("Cycle: 0");
+        cycleLabel = new Label("Cycle: 1");
         cycleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
         
         pcLabel = new Label("PC: 0");
@@ -609,7 +609,7 @@ public class TomasuloSimulator extends Application {
         engine.reset();
         updateAllViews();
 
-        cycleLabel.setText("Cycle: 0");
+        cycleLabel.setText("Cycle: 1");
         logArea.clear();
 
         stepButton.setDisable(true);

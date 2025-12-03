@@ -201,6 +201,9 @@ public class Instruction {
             return originalInstruction;
         }
 
+        // Convert type name: L_D -> L.D, ADD_D -> ADD.D, etc.
+        String typeName = type.name().replace("_", ".");
+
         switch (type) {
             case ADD_D:
             case SUB_D:
@@ -210,25 +213,25 @@ public class Instruction {
             case SUB_S:
             case MUL_S:
             case DIV_S:
-                return String.format("%s %s, %s, %s", type.name(), dest, src1, src2);
+                return String.format("%s %s, %s, %s", typeName, dest, src1, src2);
             case DADDI:
             case DSUBI:
-                return String.format("%s %s, %s, %d", type.name(), dest, src1, immediate);
+                return String.format("%s %s, %s, %d", typeName, dest, src1, immediate);
             case L_D:
             case L_S:
             case LW:
             case LD:
-                return String.format("%s %s, %s(%s)", type.name(), dest, src2, src1);
+                return String.format("%s %s, %s(%s)", typeName, dest, src2, src1);
             case S_D:
             case S_S:
             case SW:
             case SD:
-                return String.format("%s %s, %s(%s)", type.name(), dest, src2, src1);
+                return String.format("%s %s, %s(%s)", typeName, dest, src2, src1);
             case BEQ:
             case BNE:
-                return String.format("%s %s, %s, %s", type.name(), src1, src2, label != null ? label : "");
+                return String.format("%s %s, %s, %s", typeName, src1, src2, label != null ? label : "");
             default:
-                return type.name();
+                return typeName;
         }
     }
 }
