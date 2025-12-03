@@ -1,6 +1,9 @@
 package com.tomasulo;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ExecutionEngine {
     private Config config;
@@ -18,6 +21,7 @@ public class ExecutionEngine {
     private int issueOrder;
     private Map<String, Integer> labels;
     private List<String> cycleLog;
+    private int branchBusyUntil;
 
     public ExecutionEngine(Config config) {
         this.config = config;
@@ -25,6 +29,7 @@ public class ExecutionEngine {
         this.issueOrder = 0;
         this.labels = new HashMap<>();
         this.cycleLog = new ArrayList<>();
+        this.branchBusyUntil = -1;
 
         initializeComponents();
     }
@@ -122,6 +127,12 @@ public class ExecutionEngine {
     }
 
     private void issueStage() {
+        // Stall issuing while a branch is in-flight (waiting to complete)
+        if (currentCycle < branchBusyUntil) {
+            // do not issue until branch finishes
+            return;
+        }
+
         if (instructionQueue.isEmpty()) {
             return;
         }
@@ -129,42 +140,126 @@ public class ExecutionEngine {
         Instruction inst = instructionQueue.peek();
         if (inst == null)
             return;
-
-        boolean issued = false;
+    // issuance handled per-case below
 
         switch (inst.getType()) {
             case ADD_D:
             case SUB_D:
-                issued = issueToAddSub(inst);
+                // Need a free Add/Sub RS
+                if (findFreeStation(addSubStations) != null) {
+                    Instruction issuedInst = instructionQueue.issue();
+                    if (issuedInst != null && issueToAddSub(issuedInst)) {
+                        issuedInst.setIssueTime(currentCycle);
+                        cycleLog.add("Issued: " + issuedInst.toString());
+                    }
+                }
                 break;
             case MUL_D:
             case DIV_D:
-                issued = issueToMulDiv(inst);
+                if (findFreeStation(mulDivStations) != null) {
+                    Instruction issuedInst = instructionQueue.issue();
+                    if (issuedInst != null && issueToMulDiv(issuedInst)) {
+                        issuedInst.setIssueTime(currentCycle);
+                        cycleLog.add("Issued: " + issuedInst.toString());
+                    }
+                }
                 break;
             case ADDI:
             case SUBI:
-                issued = issueToInteger(inst);
+                if (findFreeStation(intStations) != null) {
+                    Instruction issuedInst = instructionQueue.issue();
+                    if (issuedInst != null && issueToInteger(issuedInst)) {
+                        issuedInst.setIssueTime(currentCycle);
+                        cycleLog.add("Issued: " + issuedInst.toString());
+                    }
+                }
                 break;
             case L_D:
             case L_S:
             case LW:
-                issued = issueLoad(inst);
+            case LD:
+                // For loads, base register must be ready
+                if (instructionReadyForLoad(inst)) {
+                    Instruction issuedInst = instructionQueue.issue();
+                    if (issuedInst != null && issueLoad(issuedInst)) {
+                        issuedInst.setIssueTime(currentCycle);
+                        cycleLog.add("Issued: " + issuedInst.toString());
+                    }
+                }
                 break;
             case S_D:
             case S_S:
             case SW:
-                issued = issueStore(inst);
+            case SD:
+                if (instructionReadyForStore(inst)) {
+                    Instruction issuedInst = instructionQueue.issue();
+                    if (issuedInst != null && issueStore(issuedInst)) {
+                        issuedInst.setIssueTime(currentCycle);
+                        cycleLog.add("Issued: " + issuedInst.toString());
+                    }
+                }
                 break;
             case BEQ:
             case BNE:
-                issued = issueBranch(inst);
+                // Branch only issues if operands ready
+                if (registerFile.getStatus(inst.getSrc1()).isEmpty() && registerFile.getStatus(inst.getSrc2()).isEmpty()) {
+                    Instruction issuedInst = instructionQueue.issue();
+                    if (issuedInst != null && issueBranch(issuedInst)) {
+                        // issueBranch now handles setting times and jump
+                        cycleLog.add("Issued: " + issuedInst.toString());
+                    }
+                }
                 break;
         }
+    }
 
-        if (issued) {
-            inst.setIssueTime(currentCycle);
-            instructionQueue.issue();
-            cycleLog.add("Issued: " + inst.toString());
+    private boolean instructionReadyForLoad(Instruction inst) {
+        String base = inst.getSrc1();
+        // Base register must be ready and a free load buffer must exist
+        if (!registerFile.getStatus(base).isEmpty()) return false;
+        if (findFreeBuffer(loadBuffers) == null) return false;
+
+        // Try to compute address (offset should be parseable)
+        try {
+            int offset = Integer.parseInt(inst.getSrc2());
+            int address = (int) registerFile.getValue(base) + offset;
+
+            // If any store buffer already holds this address, stall to preserve memory ordering
+            for (LoadStoreBuffer sb : storeBuffers) {
+                if (sb.isBusy() && sb.getAddress() == address) return false;
+            }
+
+            return true;
+        } catch (NumberFormatException ex) {
+            // Can't compute address now -> stall
+            return false;
+        }
+    }
+
+    private boolean instructionReadyForStore(Instruction inst) {
+        String base = inst.getSrc1();
+        String srcReg = inst.getDest(); // value to store
+
+        // Base and source registers must be ready and a free store buffer must exist
+        if (!registerFile.getStatus(base).isEmpty()) return false;
+        if (!registerFile.getStatus(srcReg).isEmpty()) return false;
+        if (findFreeBuffer(storeBuffers) == null) return false;
+
+        // Compute address and check both load and store buffers for conflicts
+        try {
+            int offset = Integer.parseInt(inst.getSrc2());
+            int address = (int) registerFile.getValue(base) + offset;
+
+            for (LoadStoreBuffer sb : storeBuffers) {
+                if (sb.isBusy() && sb.getAddress() == address) return false;
+            }
+            for (LoadStoreBuffer lb : loadBuffers) {
+                if (lb.isBusy() && lb.getAddress() == address) return false;
+            }
+
+            return true;
+        } catch (NumberFormatException ex) {
+            return false;
         }
     }
 
@@ -314,17 +409,15 @@ public class ExecutionEngine {
         double val1 = registerFile.getValue(src1);
         double val2 = registerFile.getValue(src2);
 
-        boolean taken = false;
-        if (inst.getType() == Instruction.InstructionType.BEQ) {
-            taken = (val1 == val2);
-        } else {
-            taken = (val1 != val2);
-        }
+        boolean taken = inst.getType() == Instruction.InstructionType.BEQ ? (val1 == val2) : (val1 != val2);
 
         inst.setIssueTime(currentCycle);
         inst.setExecStartTime(currentCycle);
         inst.setExecEndTime(currentCycle + config.branchLatency);
         inst.setWriteTime(currentCycle + config.branchLatency);
+
+        // Stall issuing until branch completes
+        this.branchBusyUntil = currentCycle + config.branchLatency;
 
         if (taken) {
             int targetPc = labels.getOrDefault(inst.getLabel(), 0);

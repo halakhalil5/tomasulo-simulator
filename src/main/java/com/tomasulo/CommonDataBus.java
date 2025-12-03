@@ -1,5 +1,5 @@
-package src.main.java.com.tomasulo;
-
+// package src.main.java.com.tomasulo;
+package com.tomasulo;
 import java.util.ArrayList;
 import java.util.List;
 

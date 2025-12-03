@@ -4,8 +4,8 @@ public class Instruction {
     public enum InstructionType {
         ADD_D, SUB_D, MUL_D, DIV_D, // FP operations
         ADDI, SUBI, // Integer operations
-        L_D, L_S, LW, // Loads
-        S_D, S_S, SW, // Stores
+        L_D, L_S, LW, LD, // Loads
+        S_D, S_S, SW, SD, // Stores
         BEQ, BNE // Branches
     }
 
@@ -18,6 +18,7 @@ public class Instruction {
     private String label; // Branch label
     private int pc; // Program counter
     private String originalInstruction; // Original assembly string
+    private int iteration = 0; // iteration counter for re-fetches after branches
 
     // Execution tracking
     private int issueTime = -1;
@@ -81,6 +82,38 @@ public class Instruction {
 
     public void setPc(int pc) {
         this.pc = pc;
+    }
+
+    public int getIteration() {
+        return iteration;
+    }
+
+    public void setIteration(int iteration) {
+        this.iteration = iteration;
+    }
+
+    /**
+     * Create a shallow copy of this instruction for a new dynamic instance (issued instance).
+     * The returned Instruction will have the same static fields (type, operands, pc, original text)
+     * but independent timing fields and the given iteration number.
+     */
+    public Instruction createInstanceForIteration(int iter) {
+        Instruction copy;
+        if (this.type == InstructionType.ADDI || this.type == InstructionType.SUBI) {
+            copy = new Instruction(this.type, this.dest, this.src1, this.immediate);
+        } else if (this.isLoad() || this.isStore()) {
+            // For load/store, keep src2 as string offset representation
+            copy = new Instruction(this.type, this.dest, this.src1, this.src2);
+        } else {
+            copy = new Instruction(this.type, this.dest, this.src1, this.src2);
+        }
+
+        copy.setPc(this.pc);
+        copy.setLabel(this.label);
+        copy.setOriginalInstruction(this.originalInstruction);
+        copy.setIteration(iter);
+        // timing fields default to -1 already
+        return copy;
     }
 
     public String getOriginalInstruction() {

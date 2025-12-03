@@ -1,65 +1,75 @@
 package com.tomasulo;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
 
 public class InstructionQueue {
-    private Queue<Instruction> queue;
     private List<Instruction> allInstructions;
     private int maxSize;
     private int pc;
+    private int iteration;
+    private List<Instruction> issuedInstances;
 
     public InstructionQueue(int maxSize) {
         this.maxSize = maxSize;
-        this.queue = new LinkedList<>();
         this.allInstructions = new ArrayList<>();
         this.pc = 0;
+        this.iteration = 1;
+        this.issuedInstances = new ArrayList<>();
     }
 
     public void loadInstructions(List<Instruction> instructions) {
         allInstructions.clear();
         allInstructions.addAll(instructions);
-        queue.clear();
         pc = 0;
+        this.iteration = 1;
+        this.issuedInstances.clear();
 
         // Set PC for each instruction
         for (int i = 0; i < allInstructions.size(); i++) {
             allInstructions.get(i).setPc(i * 4); // MIPS uses 4-byte instructions
         }
-
-        // Fill queue up to maxSize
-        fillQueue();
-    }
-
-    private void fillQueue() {
-        while (queue.size() < maxSize && pc / 4 < allInstructions.size()) {
-            queue.offer(allInstructions.get(pc / 4));
-            pc += 4;
-        }
     }
 
     public Instruction peek() {
-        return queue.peek();
+        int idx = pc / 4;
+        if (idx < 0 || idx >= allInstructions.size()) return null;
+        return allInstructions.get(idx);
     }
 
     public Instruction issue() {
-        Instruction inst = queue.poll();
-        fillQueue();
+        int idx = pc / 4;
+        if (idx < 0 || idx >= allInstructions.size()) return null;
+        Instruction template = allInstructions.get(idx);
+        Instruction inst = template.createInstanceForIteration(this.iteration);
+        // record as issued instance for UI/history
+        issuedInstances.add(inst);
+        pc += 4;
+        // mark that this specific issued instance will later receive timing values
         return inst;
     }
 
     public boolean isEmpty() {
-        return queue.isEmpty();
+        return peek() == null;
     }
 
     public boolean hasMoreInstructions() {
-        return !queue.isEmpty() || pc / 4 < allInstructions.size();
+        // There are more instructions if PC hasn't reached the end, or
+        // there exist instructions that were never issued (issueTime == -1).
+        if (pc / 4 < allInstructions.size()) return true;
+        for (Instruction inst : allInstructions) {
+            if (inst.getIssueTime() == -1) return true;
+        }
+        return false;
     }
 
     public List<Instruction> getQueueSnapshot() {
-        return new ArrayList<>(queue);
+        List<Instruction> window = new ArrayList<>();
+        int start = pc / 4;
+        for (int i = start; i < Math.min(allInstructions.size(), start + maxSize); i++) {
+            window.add(allInstructions.get(i));
+        }
+        return window;
     }
 
     public List<Instruction> getAllInstructions() {
@@ -67,14 +77,30 @@ public class InstructionQueue {
     }
 
     public void reset() {
-        queue.clear();
         pc = 0;
-        fillQueue();
+        // Reset instruction issue/execution metadata
+        for (Instruction inst : allInstructions) {
+            inst.setIssueTime(-1);
+            inst.setExecStartTime(-1);
+            inst.setExecEndTime(-1);
+            inst.setWriteTime(-1);
+            inst.setIteration(0);
+        }
+        this.iteration = 1;
+        this.issuedInstances.clear();
     }
 
     public void jumpTo(int targetPc) {
-        queue.clear();
         this.pc = targetPc;
-        fillQueue();
+        // New fetch sequence due to branch -> increment iteration so newly issued
+        // instances are tagged as a different iteration and not overwrite history.
+        this.iteration++;
+    }
+
+    /**
+     * Return the list of issued instruction instances (history), in order of issue.
+     */
+    public List<Instruction> getIssuedInstructions() {
+        return new ArrayList<>(issuedInstances);
     }
 }

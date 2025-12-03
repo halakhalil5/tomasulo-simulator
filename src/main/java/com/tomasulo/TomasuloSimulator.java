@@ -1,19 +1,36 @@
 package com.tomasulo;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-
-import java.io.File;
-import java.util.*;
 
 public class TomasuloSimulator extends Application {
 
@@ -115,7 +132,7 @@ public class TomasuloSimulator extends Application {
         bottomSection.getChildren().addAll(logLabel, logArea);
         root.setBottom(bottomSection);
 
-        Scene scene = new Scene(root, 1400, 900);
+        Scene scene = new Scene(root, 1000, 500);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
@@ -369,9 +386,29 @@ public class TomasuloSimulator extends Application {
 
         instructionTable = new TableView<>();
 
+        // Style separator rows (iteration headers)
+        instructionTable.setRowFactory(tv -> new javafx.scene.control.TableRow<InstructionTableRow>() {
+            @Override
+            protected void updateItem(InstructionTableRow item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item == null || empty) {
+                    setStyle("");
+                } else if (item.isSeparator()) {
+                    // make separator visually distinct
+                    setStyle("-fx-background-color: -fx-accent; -fx-font-weight: bold; -fx-text-fill: white;");
+                } else {
+                    setStyle("");
+                }
+            }
+        });
+
         TableColumn<InstructionTableRow, String> instCol = new TableColumn<>("Instruction");
         instCol.setCellValueFactory(new PropertyValueFactory<>("instruction"));
         instCol.setPrefWidth(250);
+
+    TableColumn<InstructionTableRow, String> iterCol = new TableColumn<>("Iter");
+    iterCol.setCellValueFactory(new PropertyValueFactory<>("iteration"));
+    iterCol.setPrefWidth(60);
 
         TableColumn<InstructionTableRow, String> issueCol = new TableColumn<>("Issue");
         issueCol.setCellValueFactory(new PropertyValueFactory<>("issue"));
@@ -389,7 +426,7 @@ public class TomasuloSimulator extends Application {
         writeCol.setCellValueFactory(new PropertyValueFactory<>("write"));
         writeCol.setPrefWidth(80);
 
-        instructionTable.getColumns().addAll(instCol, issueCol, execStartCol, execEndCol, writeCol);
+    instructionTable.getColumns().addAll(iterCol, instCol, issueCol, execStartCol, execEndCol, writeCol);
 
         box.getChildren().addAll(label, instructionTable);
 
@@ -611,8 +648,24 @@ public class TomasuloSimulator extends Application {
     private void updateInstructionTable() {
         ObservableList<InstructionTableRow> data = FXCollections.observableArrayList();
 
-        for (Instruction inst : engine.getInstructionQueue().getAllInstructions()) {
-            data.add(new InstructionTableRow(inst));
+        // Prefer showing issued instruction instances (history). If none issued yet,
+        // show the upcoming program window.
+        List<Instruction> issued = engine.getInstructionQueue().getIssuedInstructions();
+        if (issued != null && !issued.isEmpty()) {
+            // Insert a separator/header row when the iteration number changes
+            int lastIter = -1;
+            for (Instruction inst : issued) {
+                int iter = inst.getIteration();
+                if (iter != lastIter) {
+                    data.add(new InstructionTableRow("--- Iteration " + iter + " ---"));
+                    lastIter = iter;
+                }
+                data.add(new InstructionTableRow(inst));
+            }
+        } else {
+            for (Instruction inst : engine.getInstructionQueue().getQueueSnapshot()) {
+                data.add(new InstructionTableRow(inst));
+            }
         }
 
         instructionTable.setItems(data);
@@ -811,18 +864,41 @@ public class TomasuloSimulator extends Application {
     }
 
     public static class InstructionTableRow {
-        private String instruction, issue, execStart, execEnd, write;
+        private String instruction, issue, execStart, execEnd, write, iteration;
+        private boolean separator = false;
 
+        // Regular row for an issued instruction instance
         public InstructionTableRow(Instruction inst) {
             this.instruction = inst.toString();
             this.issue = inst.getIssueTime() >= 0 ? String.valueOf(inst.getIssueTime()) : "";
             this.execStart = inst.getExecStartTime() >= 0 ? String.valueOf(inst.getExecStartTime()) : "";
             this.execEnd = inst.getExecEndTime() >= 0 ? String.valueOf(inst.getExecEndTime()) : "";
             this.write = inst.getWriteTime() >= 0 ? String.valueOf(inst.getWriteTime()) : "";
+            this.iteration = inst.getIteration() > 0 ? String.valueOf(inst.getIteration()) : "";
+            this.separator = false;
+        }
+
+        // Separator row (visual grouping for iterations)
+        public InstructionTableRow(String separatorLabel) {
+            this.instruction = separatorLabel;
+            this.issue = "";
+            this.execStart = "";
+            this.execEnd = "";
+            this.write = "";
+            this.iteration = "";
+            this.separator = true;
+        }
+
+        public boolean isSeparator() {
+            return separator;
         }
 
         public String getInstruction() {
             return instruction;
+        }
+
+        public String getIteration() {
+            return iteration;
         }
 
         public String getIssue() {
