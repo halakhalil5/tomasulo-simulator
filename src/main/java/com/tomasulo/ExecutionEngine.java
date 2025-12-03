@@ -22,6 +22,17 @@ public class ExecutionEngine {
     private Map<String, Integer> labels;
     private List<String> cycleLog;
     private int branchBusyUntil;
+    private static class PendingBranch {
+        Instruction inst;
+        int remainingCycles;
+
+        PendingBranch(Instruction inst, int cycles) {
+            this.inst = inst;
+            this.remainingCycles = cycles;
+        }
+    }
+
+    private List<PendingBranch> pendingBranches;
 
     public ExecutionEngine(Config config) {
         this.config = config;
@@ -30,6 +41,7 @@ public class ExecutionEngine {
         this.labels = new HashMap<>();
         this.cycleLog = new ArrayList<>();
         this.branchBusyUntil = -1;
+    this.pendingBranches = new ArrayList<>();
 
         initializeComponents();
     }
@@ -127,8 +139,10 @@ public class ExecutionEngine {
     }
 
     private void issueStage() {
-        // Stall issuing while a branch is in-flight (waiting to complete)
-        if (currentCycle < branchBusyUntil) {
+        // Stall issuing while a branch is in-flight (waiting to complete execution).
+        // We block issuing until the branch has finished execution (inclusive),
+        // so allow issuing only when currentCycle > branchBusyUntil.
+        if (currentCycle <= branchBusyUntil) {
             // do not issue until branch finishes
             return;
         }
@@ -140,6 +154,15 @@ public class ExecutionEngine {
         Instruction inst = instructionQueue.peek();
         if (inst == null)
             return;
+        // Prevent issuing the same static instruction while a previous instance
+        // of it is still pending write-back. This avoids an instruction being
+        // in both "write-back" and "issue" in the same cycle.
+        for (CommonDataBus.BusEntry pending : cdb.getPendingWrites()) {
+            if (pending != null && pending.instruction != null && pending.instruction.getPc() == inst.getPc()) {
+                // Stall issuing this instruction until the older instance completes
+                return;
+            }
+        }
     // issuance handled per-case below
 
         switch (inst.getType()) {
@@ -204,9 +227,11 @@ public class ExecutionEngine {
                 // Branch only issues if operands ready
                 if (registerFile.getStatus(inst.getSrc1()).isEmpty() && registerFile.getStatus(inst.getSrc2()).isEmpty()) {
                     Instruction issuedInst = instructionQueue.issue();
-                    if (issuedInst != null && issueBranch(issuedInst)) {
-                        // issueBranch now handles setting times and jump
-                        cycleLog.add("Issued: " + issuedInst.toString());
+                    if (issuedInst != null) {
+                        boolean issuedOk = issueBranch(issuedInst);
+                        if (issuedOk) {
+                            cycleLog.add("Issued: " + issuedInst.toString());
+                        }
                     }
                 }
                 break;
@@ -238,11 +263,14 @@ public class ExecutionEngine {
 
     private boolean instructionReadyForStore(Instruction inst) {
         String base = inst.getSrc1();
-        String srcReg = inst.getDest(); // value to store
+        // value-to-store register is intentionally not required to be ready
+        // at issue time; store buffer will record its Qi if needed.
 
         // Base and source registers must be ready and a free store buffer must exist
+        // Base register must be ready (to compute address). The source register
+        // value may be produced later; we allow issuing a store with Q set so
+        // it will receive the value when ready.
         if (!registerFile.getStatus(base).isEmpty()) return false;
-        if (!registerFile.getStatus(srcReg).isEmpty()) return false;
         if (findFreeBuffer(storeBuffers) == null) return false;
 
         // Compute address and check both load and store buffers for conflicts
@@ -406,26 +434,18 @@ public class ExecutionEngine {
             return false; // Wait for operands
         }
 
-        double val1 = registerFile.getValue(src1);
-        double val2 = registerFile.getValue(src2);
-
-        boolean taken = inst.getType() == Instruction.InstructionType.BEQ ? (val1 == val2) : (val1 != val2);
-
+        // Record that the branch was issued; actual evaluation happens when the
+        // branch finishes execution in executeStage.
         inst.setIssueTime(currentCycle);
-        inst.setExecStartTime(currentCycle);
-        inst.setExecEndTime(currentCycle + config.branchLatency);
-        inst.setWriteTime(currentCycle + config.branchLatency);
+        inst.setExecStartTime(-1);
+        inst.setExecEndTime(-1);
 
-        // Stall issuing until branch completes
+        // Stall issuing until branch completes (issue happens in cycle C, execution
+        // will start next cycle and last config.branchLatency cycles).
         this.branchBusyUntil = currentCycle + config.branchLatency;
 
-        if (taken) {
-            int targetPc = labels.getOrDefault(inst.getLabel(), 0);
-            instructionQueue.jumpTo(targetPc);
-            cycleLog.add("Branch taken to " + inst.getLabel());
-        } else {
-            cycleLog.add("Branch not taken");
-        }
+        // Track pending branch with remaining execution cycles
+        pendingBranches.add(new PendingBranch(inst, config.branchLatency));
 
         return true;
     }
@@ -497,14 +517,40 @@ public class ExecutionEngine {
                 }
                 buf.decrementCycles();
                 if (buf.isComplete()) {
-                    memory.store(buf.getAddress(), buf.getValue());
+                    // Do not perform the store immediately; schedule a CDB write so the
+                    // actual memory.store and buffer clear happen in the next cycle's
+                    // writeResultStage (writes happen after execute stage).
                     buf.getInstruction().setExecEndTime(currentCycle);
-                    buf.getInstruction().setWriteTime(currentCycle);
-                    buf.clear();
-                    cycleLog.add("Store completed to address " + buf.getAddress());
+                    cdb.requestWrite(buf.getName(), buf.getValue(), buf.getInstruction(), issueOrder++);
                 }
             }
         }
+
+        // Process pending branches: decrement remaining cycles and when a branch
+        // finishes execution evaluate its outcome and request a CDB write so the
+        // branch effect is applied in the write stage (next cycle).
+        List<PendingBranch> finishedBranches = new ArrayList<>();
+        for (PendingBranch pb : pendingBranches) {
+            Instruction b = pb.inst;
+            if (pb.remainingCycles > 0) {
+                if (b.getExecStartTime() == -1) {
+                    b.setExecStartTime(currentCycle);
+                }
+                pb.remainingCycles--;
+                if (pb.remainingCycles == 0) {
+                    b.setExecEndTime(currentCycle);
+                    // Evaluate branch decision at execution completion
+                    double val1 = registerFile.getValue(b.getSrc1());
+                    double val2 = registerFile.getValue(b.getSrc2());
+                    boolean taken = b.getType() == Instruction.InstructionType.BEQ ? (val1 == val2) : (val1 != val2);
+                    b.setBranchTaken(taken);
+                    // Request CDB write so writeResultStage applies the jump on the next stage
+                    cdb.requestWrite("BRANCH" + b.getPc(), 0.0, b, issueOrder++);
+                    finishedBranches.add(pb);
+                }
+            }
+        }
+        pendingBranches.removeAll(finishedBranches);
     }
 
     private void writeResultStage() {
@@ -549,7 +595,30 @@ public class ExecutionEngine {
         }
 
         for (LoadStoreBuffer buf : storeBuffers) {
+            // If this write corresponds to a store buffer producing its value,
+            // update the buffer's value/Q as usual.
             buf.updateValue(winner.tag, winner.value);
+            // If the CDB winner is the store buffer tag itself, perform the actual memory store
+            // and clear the buffer now (this makes stores commit in the write stage).
+            if (buf.getName().equals(winner.tag)) {
+                memory.store(buf.getAddress(), buf.getValue());
+                buf.getInstruction().setWriteTime(currentCycle);
+                buf.clear();
+                cycleLog.add("Store completed to address " + buf.getAddress());
+            }
+        }
+
+        // If the write corresponds to a branch, apply the branch effect now (jump on write-back)
+        if (winner.instruction != null && winner.instruction.isBranch()) {
+            Instruction br = winner.instruction;
+            br.setWriteTime(currentCycle);
+            if (br.getBranchTaken()) {
+                int targetPc = labels.getOrDefault(br.getLabel(), 0);
+                instructionQueue.jumpTo(targetPc);
+                cycleLog.add("Branch taken to " + br.getLabel());
+            } else {
+                cycleLog.add("Branch not taken");
+            }
         }
 
         // Update register file

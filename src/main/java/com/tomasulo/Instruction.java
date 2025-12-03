@@ -19,6 +19,7 @@ public class Instruction {
     private int pc; // Program counter
     private String originalInstruction; // Original assembly string
     private int iteration = 0; // iteration counter for re-fetches after branches
+    private boolean branchTaken = false;
 
     // Execution tracking
     private int issueTime = -1;
@@ -112,8 +113,17 @@ public class Instruction {
         copy.setLabel(this.label);
         copy.setOriginalInstruction(this.originalInstruction);
         copy.setIteration(iter);
+        copy.setBranchTaken(this.branchTaken);
         // timing fields default to -1 already
         return copy;
+    }
+
+    public boolean getBranchTaken() {
+        return branchTaken;
+    }
+
+    public void setBranchTaken(boolean taken) {
+        this.branchTaken = taken;
     }
 
     public String getOriginalInstruction() {
