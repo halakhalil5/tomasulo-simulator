@@ -54,13 +54,9 @@ public class InstructionQueue {
     }
 
     public boolean hasMoreInstructions() {
-        // There are more instructions if PC hasn't reached the end, or
-        // there exist instructions that were never issued (issueTime == -1).
-        if (pc / 4 < allInstructions.size()) return true;
-        for (Instruction inst : allInstructions) {
-            if (inst.getIssueTime() == -1) return true;
-        }
-        return false;
+        // There are more instructions if PC is still pointing to a valid instruction
+        // (even if it was issued before in a previous iteration, we can issue it again)
+        return pc / 4 < allInstructions.size();
     }
 
     public List<Instruction> getQueueSnapshot() {

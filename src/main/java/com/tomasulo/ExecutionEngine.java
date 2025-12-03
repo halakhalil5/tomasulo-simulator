@@ -22,16 +22,15 @@ public class ExecutionEngine {
     private int issueOrder;
     private Map<String, Integer> labels;
     private List<String> cycleLog;
-    private int branchBusyUntil;
-    // Branch reservation stations
+    private int branchBusyUntil; // Cycle until which all issuing is stalled due to branch
 
     public ExecutionEngine(Config config) {
         this.config = config;
         this.currentCycle = 0;
         this.issueOrder = 0;
+        this.branchBusyUntil = -1; // No branch stall initially
         this.labels = new HashMap<>();
         this.cycleLog = new ArrayList<>();
-        this.branchBusyUntil = -1;
         // branchStations list initialized in initializeComponents
 
         initializeComponents();
@@ -151,14 +150,6 @@ public class ExecutionEngine {
     }
 
     private void issueStage() {
-        // Stall issuing while a branch is in-flight (waiting to complete execution).
-        // We block issuing until the branch has finished execution (inclusive),
-        // so allow issuing only when currentCycle > branchBusyUntil.
-        if (currentCycle <= branchBusyUntil) {
-            // do not issue until branch finishes
-            return;
-        }
-
         if (instructionQueue.isEmpty()) {
             return;
         }
@@ -174,6 +165,16 @@ public class ExecutionEngine {
                 // Stall issuing this instruction until the older instance completes
                 return;
             }
+        }
+        
+        // Check if this is a branch - branches can issue immediately
+        boolean isBranch = (inst.getType() == Instruction.InstructionType.BEQ || 
+                           inst.getType() == Instruction.InstructionType.BNE);
+        
+        // If there's an active branch stall and this is NOT a branch, stall all issuing
+        if (!isBranch && currentCycle <= branchBusyUntil) {
+            cycleLog.add("Stalled issuing due to branch in execution");
+            return;
         }
         // issuance handled per-case below
 
@@ -240,9 +241,8 @@ public class ExecutionEngine {
                 break;
             case BEQ:
             case BNE:
-                // Branch only issues if operands ready
-                if (registerFile.getStatus(inst.getSrc1()).isEmpty()
-                        && registerFile.getStatus(inst.getSrc2()).isEmpty()) {
+                // Branch issues immediately (captures Qi if operands not ready)
+                if (findFreeStation(branchStations) != null) {
                     Instruction issuedInst = instructionQueue.issue();
                     if (issuedInst != null) {
                         boolean issuedOk = issueBranch(issuedInst);
@@ -474,10 +474,6 @@ public class ExecutionEngine {
         String src1 = inst.getSrc1();
         String src2 = inst.getSrc2();
 
-        if (!registerFile.getStatus(src1).isEmpty() || !registerFile.getStatus(src2).isEmpty()) {
-            return false; // Wait for operands
-        }
-
         // Need a free branch reservation station
         ReservationStation rs = findFreeStation(branchStations);
         if (rs == null)
@@ -498,9 +494,10 @@ public class ExecutionEngine {
         rs.setInstruction(inst, inst.getType().name(), vj, vk, qj, qk, config.branchLatency);
 
         inst.setIssueTime(currentCycle);
-
-        // Stall issuing until branch completes execution
+        
+        // Stall all subsequent issuing until this branch completes execution
         this.branchBusyUntil = currentCycle + config.branchLatency;
+        cycleLog.add("Branch issued - stalling all issuing until cycle " + branchBusyUntil);
 
         return true;
     }
@@ -621,6 +618,9 @@ public class ExecutionEngine {
                     double val2 = rs.getVk();
                     boolean taken = b.getType() == Instruction.InstructionType.BEQ ? (val1 == val2) : (val1 != val2);
                     b.setBranchTaken(taken);
+                    cycleLog.add(String.format("Branch eval: %s comparing %.2f %s %.2f = %s, target: %s", 
+                        b.getType(), val1, (b.getType() == Instruction.InstructionType.BEQ ? "==" : "!="), 
+                        val2, taken, b.getLabel()));
                     cdb.requestWrite(rs.getName(), 0.0, b, issueOrder++);
                 }
             }
@@ -672,12 +672,26 @@ public class ExecutionEngine {
         if (winner.instruction != null && winner.instruction.isBranch()) {
             Instruction br = winner.instruction;
             br.setWriteTime(currentCycle);
+            String label = br.getLabel();
+            cycleLog.add("Branch write-back: label/target = '" + label + "', taken = " + br.getBranchTaken());
+            
             if (br.getBranchTaken()) {
-                int targetPc = labels.getOrDefault(br.getLabel(), 0);
+                int targetPc;
+                
+                // Check if the label is actually a numeric PC address
+                try {
+                    targetPc = Integer.parseInt(label);
+                    cycleLog.add("Branch TAKEN: Jumping to numeric PC " + targetPc);
+                } catch (NumberFormatException e) {
+                    // It's a label name, look it up in the labels map
+                    targetPc = labels.getOrDefault(label, 0);
+                    cycleLog.add("Branch TAKEN: Jumping to label '" + label + "' resolved to PC " + targetPc);
+                }
+                
                 instructionQueue.jumpTo(targetPc);
-                cycleLog.add("Branch taken to " + br.getLabel());
+                cycleLog.add("PC updated from " + (targetPc - 4) + " to " + instructionQueue.getPc());
             } else {
-                cycleLog.add("Branch not taken");
+                cycleLog.add("Branch NOT taken - continuing sequential execution");
             }
         }
 
