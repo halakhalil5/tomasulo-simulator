@@ -178,6 +178,8 @@ public class ExecutionEngine {
         switch (inst.getType()) {
             case ADD_D:
             case SUB_D:
+            case ADD_S:
+            case SUB_S:
                 // Need a free Add/Sub RS
                 if (findFreeStation(addSubStations) != null) {
                     Instruction issuedInst = instructionQueue.issue();
@@ -189,6 +191,8 @@ public class ExecutionEngine {
                 break;
             case MUL_D:
             case DIV_D:
+            case MUL_S:
+            case DIV_S:
                 if (findFreeStation(mulDivStations) != null) {
                     Instruction issuedInst = instructionQueue.issue();
                     if (issuedInst != null && issueToMulDiv(issuedInst)) {
@@ -197,8 +201,8 @@ public class ExecutionEngine {
                     }
                 }
                 break;
-            case ADDI:
-            case SUBI:
+            case DADDI:
+            case DSUBI:
                 if (findFreeStation(intStations) != null) {
                     Instruction issuedInst = instructionQueue.issue();
                     if (issuedInst != null && issueToInteger(issuedInst)) {
@@ -328,7 +332,12 @@ public class ExecutionEngine {
         if (qk.isEmpty())
             vk = registerFile.getValue(src2);
 
-        int latency = inst.getType() == Instruction.InstructionType.ADD_D ? config.addLatency : config.subLatency;
+        int latency;
+        if (inst.getType() == Instruction.InstructionType.ADD_D || inst.getType() == Instruction.InstructionType.ADD_S) {
+            latency = config.addLatency;
+        } else {
+            latency = config.subLatency;
+        }
 
         rs.setInstruction(inst, inst.getType().name(), vj, vk, qj, qk, latency);
         registerFile.setStatus(inst.getDest(), rs.getName());
@@ -354,7 +363,12 @@ public class ExecutionEngine {
         if (qk.isEmpty())
             vk = registerFile.getValue(src2);
 
-        int latency = inst.getType() == Instruction.InstructionType.MUL_D ? config.mulLatency : config.divLatency;
+        int latency;
+        if (inst.getType() == Instruction.InstructionType.MUL_D || inst.getType() == Instruction.InstructionType.MUL_S) {
+            latency = config.mulLatency;
+        } else {
+            latency = config.divLatency;
+        }
 
         rs.setInstruction(inst, inst.getType().name(), vj, vk, qj, qk, latency);
         registerFile.setStatus(inst.getDest(), rs.getName());
@@ -376,7 +390,7 @@ public class ExecutionEngine {
 
         double vk = inst.getImmediate();
 
-        int latency = inst.getType() == Instruction.InstructionType.ADDI ? config.intAddLatency : config.intSubLatency;
+        int latency = inst.getType() == Instruction.InstructionType.DADDI ? config.intAddLatency : config.intSubLatency;
 
         rs.setInstruction(inst, inst.getType().name(), vj, vk, qj, "", latency);
         registerFile.setStatus(inst.getDest(), rs.getName());
@@ -615,7 +629,8 @@ public class ExecutionEngine {
         if (winner == null)
             return;
 
-        cycleLog.add("CDB Write: " + winner.tag + " = " + winner.value);
+        cycleLog.add("CDB Write: " + winner.tag + " = " + winner.value + " (instruction: " + 
+                     (winner.instruction != null ? winner.instruction.toString() : "null") + ")");
 
         // Update reservation stations
         for (ReservationStation rs : addSubStations) {
@@ -637,6 +652,28 @@ public class ExecutionEngine {
             if (rs.getName().equals(winner.tag)) {
                 rs.clear();
             }
+        }
+
+        for (ReservationStation rs : branchStations) {
+            rs.updateOperand(winner.tag, winner.value);
+            if (rs.getName().equals(winner.tag)) {
+                rs.clear();
+            }
+        }
+
+        // Update register file FIRST, before clearing any buffers
+        boolean foundRegister = false;
+        for (String reg : registerFile.getRegisterStatus().keySet()) {
+            String regStatus = registerFile.getStatus(reg);
+            if (regStatus != null && !regStatus.isEmpty() && regStatus.equals(winner.tag)) {
+                cycleLog.add("Updating register " + reg + " with value " + winner.value + " (clearing Qi: " + winner.tag + ")");
+                registerFile.setValue(reg, winner.value);
+                registerFile.clearStatus(reg);
+                foundRegister = true;
+            }
+        }
+        if (!foundRegister && winner.instruction != null && !winner.instruction.isBranch() && !winner.instruction.isStore()) {
+            cycleLog.add("WARNING: No register found with Qi=" + winner.tag + " for instruction " + winner.instruction.toString());
         }
 
         // Update load/store buffers
@@ -675,19 +712,25 @@ public class ExecutionEngine {
             }
         }
 
-        // Update register file
-        for (String reg : registerFile.getRegisterStatus().keySet()) {
-            if (registerFile.getStatus(reg).equals(winner.tag)) {
-                registerFile.setValue(reg, winner.value);
-                registerFile.clearStatus(reg);
-            }
+        // Set write time for the instruction
+        if (winner.instruction != null) {
+            winner.instruction.setWriteTime(currentCycle);
         }
-
-        winner.instruction.setWriteTime(currentCycle);
     }
 
     private boolean isComplete() {
-        // Check if all stations and buffers are free and queue is empty
+        // Simulation is complete when:
+        // 1. All instructions have been issued (no more in queue to fetch)
+        // 2. All reservation stations are empty
+        // 3. All load/store buffers are empty
+        // 4. All branch stations are empty
+        
+        // Check if there are more instructions to issue
+        if (instructionQueue.hasMoreInstructions()) {
+            return false;
+        }
+        
+        // Check all reservation stations
         for (ReservationStation rs : addSubStations) {
             if (rs.isBusy())
                 return false;
@@ -700,6 +743,12 @@ public class ExecutionEngine {
             if (rs.isBusy())
                 return false;
         }
+        for (ReservationStation rs : branchStations) {
+            if (rs.isBusy())
+                return false;
+        }
+        
+        // Check all load/store buffers
         for (LoadStoreBuffer buf : loadBuffers) {
             if (buf.isBusy())
                 return false;
@@ -709,7 +758,7 @@ public class ExecutionEngine {
                 return false;
         }
 
-        return !instructionQueue.hasMoreInstructions();
+        return true;
     }
 
     private ReservationStation findFreeStation(List<ReservationStation> stations) {

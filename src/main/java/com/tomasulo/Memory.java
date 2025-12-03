@@ -46,6 +46,10 @@ public class Memory {
 
         // Some specific test values
         memory.put(100, 123.456);
+        memory.put(0,90.0);
+        memory.put(8,90.0);
+        memory.put(16,100.0);
+        memory.put(24,800.0);
         memory.put(104, -42.0);
         memory.put(200, 3.14159);
     }

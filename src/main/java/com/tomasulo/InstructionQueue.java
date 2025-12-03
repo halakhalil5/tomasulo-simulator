@@ -103,4 +103,18 @@ public class InstructionQueue {
     public List<Instruction> getIssuedInstructions() {
         return new ArrayList<>(issuedInstances);
     }
+    
+    /**
+     * Get the current program counter (PC) value
+     */
+    public int getPc() {
+        return pc;
+    }
+    
+    /**
+     * Get the current iteration number
+     */
+    public int getIteration() {
+        return iteration;
+    }
 }

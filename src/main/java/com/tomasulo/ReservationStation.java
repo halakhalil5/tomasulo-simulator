@@ -72,17 +72,21 @@ public class ReservationStation {
         switch (op) {
             case "ADD":
             case "ADD.D":
-            case "ADDI":
+            case "ADD.S":
+            case "DADDI":
                 return vj + vk;
             case "SUB":
             case "SUB.D":
-            case "SUBI":
+            case "SUB.S":
+            case "DSUBI":
                 return vj - vk;
             case "MUL":
             case "MUL.D":
+            case "MUL.S":
                 return vj * vk;
             case "DIV":
             case "DIV.D":
+            case "DIV.S":
                 return vj / vk;
             default:
                 return 0;

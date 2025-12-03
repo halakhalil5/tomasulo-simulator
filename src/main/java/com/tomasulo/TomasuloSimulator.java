@@ -42,6 +42,8 @@ public class TomasuloSimulator extends Application {
     private TextArea codeArea;
     private TextArea logArea;
     private Label cycleLabel;
+    private Label pcLabel;
+    private Label currentInstructionLabel;
 
     // Tables
     private TableView<RSTableRow> addSubTable;
@@ -183,7 +185,10 @@ public class TomasuloSimulator extends Application {
         MenuItem sample3 = new MenuItem("Hazards Example");
         sample3.setOnAction(e -> codeArea.setText(InstructionParser.getSampleProgram3()));
 
-        samplesMenu.getItems().addAll(sample1, sample2, sample3);
+        MenuItem sample4 = new MenuItem("New Instructions Demo (ADD.S, MUL.S, etc.)");
+        sample4.setOnAction(e -> codeArea.setText(InstructionParser.getSampleProgram4()));
+
+        samplesMenu.getItems().addAll(sample1, sample2, sample3, sample4);
 
         // Help Menu
         Menu helpMenu = new Menu("Help");
@@ -206,6 +211,12 @@ public class TomasuloSimulator extends Application {
 
         cycleLabel = new Label("Cycle: 0");
         cycleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        
+        pcLabel = new Label("PC: 0");
+        pcLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        
+        currentInstructionLabel = new Label("Next: ");
+        currentInstructionLabel.setStyle("-fx-font-size: 14px;");
 
         loadButton = new Button("Load Program");
         loadButton.setOnAction(e -> loadProgram());
@@ -222,7 +233,7 @@ public class TomasuloSimulator extends Application {
         resetButton.setOnAction(e -> resetSimulation());
         resetButton.setDisable(true);
 
-        panel.getChildren().addAll(cycleLabel, new Separator(),
+        panel.getChildren().addAll(cycleLabel, pcLabel, currentInstructionLabel, new Separator(),
                 loadButton, stepButton, runButton, resetButton);
 
         return panel;
@@ -612,6 +623,19 @@ public class TomasuloSimulator extends Application {
         updateRegisterTables();
         updateInstructionTable();
         updateCacheTable();
+        updatePcAndCurrentInstruction();
+    }
+    
+    private void updatePcAndCurrentInstruction() {
+        int pc = engine.getInstructionQueue().getPc();
+        pcLabel.setText(String.format("PC: 0x%X (%d)", pc, pc));
+        
+        Instruction currentInst = engine.getInstructionQueue().peek();
+        if (currentInst != null) {
+            currentInstructionLabel.setText("Next: " + currentInst.toString());
+        } else {
+            currentInstructionLabel.setText("Next: (none - end of program)");
+        }
     }
 
     private void updateReservationStationTables() {

@@ -1,17 +1,21 @@
 package com.tomasulo;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.List;
 
 public class InstructionParser {
 
     /**
      * Parse MIPS assembly instructions from a string
      * Supports:
-     * - FP operations: ADD.D, SUB.D, MUL.D, DIV.D
-     * - Integer operations: ADDI, SUBI
-     * - Loads: L.D, L.S, LW
-     * - Stores: S.D, S.S, SW
+     * - FP double operations: ADD.D, SUB.D, MUL.D, DIV.D
+     * - FP single operations: ADD.S, SUB.S, MUL.S, DIV.S
+     * - Integer operations: DADDI, DSUBI
+     * - Loads: L.D, L.S, LW, LD
+     * - Stores: S.D, S.S, SW, SD
      * - Branches: BEQ, BNE
      * - Labels: LOOP:, END:, etc.
      */
@@ -83,12 +87,28 @@ public class InstructionParser {
                     return new Instruction(Instruction.InstructionType.DIV_D,
                             tokens[1], tokens[2], tokens[3]);
 
-                case "ADDI":
-                    return new Instruction(Instruction.InstructionType.ADDI,
+                case "ADD.S":
+                    return new Instruction(Instruction.InstructionType.ADD_S,
+                            tokens[1], tokens[2], tokens[3]);
+
+                case "SUB.S":
+                    return new Instruction(Instruction.InstructionType.SUB_S,
+                            tokens[1], tokens[2], tokens[3]);
+
+                case "MUL.S":
+                    return new Instruction(Instruction.InstructionType.MUL_S,
+                            tokens[1], tokens[2], tokens[3]);
+
+                case "DIV.S":
+                    return new Instruction(Instruction.InstructionType.DIV_S,
+                            tokens[1], tokens[2], tokens[3]);
+
+                case "DADDI":
+                    return new Instruction(Instruction.InstructionType.DADDI,
                             tokens[1], tokens[2], Integer.parseInt(tokens[3]));
 
-                case "SUBI":
-                    return new Instruction(Instruction.InstructionType.SUBI,
+                case "DSUBI":
+                    return new Instruction(Instruction.InstructionType.DSUBI,
                             tokens[1], tokens[2], Integer.parseInt(tokens[3]));
 
                 case "L.D":
@@ -100,6 +120,9 @@ public class InstructionParser {
                 case "LW":
                     return parseLoadStore(Instruction.InstructionType.LW, tokens);
 
+                case "LD":
+                    return parseLoadStore(Instruction.InstructionType.LD, tokens);
+
                 case "S.D":
                     return parseLoadStore(Instruction.InstructionType.S_D, tokens);
 
@@ -108,6 +131,9 @@ public class InstructionParser {
 
                 case "SW":
                     return parseLoadStore(Instruction.InstructionType.SW, tokens);
+
+                case "SD":
+                    return parseLoadStore(Instruction.InstructionType.SD, tokens);
 
                 case "BEQ":
                     Instruction beq = new Instruction(Instruction.InstructionType.BEQ,
@@ -194,5 +220,20 @@ public class InstructionParser {
                 "SUB.D F8, F0, F2  # RAW on F0 and F2\n" +
                 "DIV.D F10, F0, F6 # RAW on F0\n" +
                 "S.D F0, 0(R2)     # Store F0\n";
+    }
+    
+    public static String getSampleProgram4() {
+        return "# New instruction types demo\n" +
+                "# Single precision FP operations\n" +
+                "L.S F0, 0(R1)     # Load single\n" +
+                "L.S F2, 4(R1)     # Load single\n" +
+                "ADD.S F4, F0, F2  # Add single\n" +
+                "SUB.S F6, F0, F2  # Subtract single\n" +
+                "MUL.S F8, F0, F2  # Multiply single\n" +
+                "DIV.S F10, F0, F2 # Divide single\n" +
+                "S.S F4, 0(R2)     # Store single\n" +
+                "# Double word loads/stores\n" +
+                "LD F12, 0(R3)     # Load double word\n" +
+                "SD F12, 8(R3)     # Store double word\n";
     }
 }

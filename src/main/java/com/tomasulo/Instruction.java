@@ -2,8 +2,9 @@ package com.tomasulo;
 
 public class Instruction {
     public enum InstructionType {
-        ADD_D, SUB_D, MUL_D, DIV_D, // FP operations
-        ADDI, SUBI, // Integer operations
+        ADD_D, SUB_D, MUL_D, DIV_D, // FP double operations
+        ADD_S, SUB_S, MUL_S, DIV_S, // FP single operations
+        DADDI, DSUBI, // Integer operations
         L_D, L_S, LW, LD, // Loads
         S_D, S_S, SW, SD, // Stores
         BEQ, BNE // Branches
@@ -100,7 +101,7 @@ public class Instruction {
      */
     public Instruction createInstanceForIteration(int iter) {
         Instruction copy;
-        if (this.type == InstructionType.ADDI || this.type == InstructionType.SUBI) {
+        if (this.type == InstructionType.DADDI || this.type == InstructionType.DSUBI) {
             copy = new Instruction(this.type, this.dest, this.src1, this.immediate);
         } else if (this.isLoad() || this.isStore()) {
             // For load/store, keep src2 as string offset representation
@@ -169,18 +170,20 @@ public class Instruction {
     public boolean isFloatingPoint() {
         return type == InstructionType.ADD_D || type == InstructionType.SUB_D ||
                 type == InstructionType.MUL_D || type == InstructionType.DIV_D ||
+                type == InstructionType.ADD_S || type == InstructionType.SUB_S ||
+                type == InstructionType.MUL_S || type == InstructionType.DIV_S ||
                 type == InstructionType.L_D || type == InstructionType.S_D ||
                 type == InstructionType.L_S || type == InstructionType.S_S;
     }
 
     public boolean isLoad() {
         return type == InstructionType.L_D || type == InstructionType.L_S ||
-                type == InstructionType.LW;
+                type == InstructionType.LW || type == InstructionType.LD;
     }
 
     public boolean isStore() {
         return type == InstructionType.S_D || type == InstructionType.S_S ||
-                type == InstructionType.SW;
+                type == InstructionType.SW || type == InstructionType.SD;
     }
 
     public boolean isBranch() {
@@ -188,7 +191,7 @@ public class Instruction {
     }
 
     public boolean isInteger() {
-        return type == InstructionType.ADDI || type == InstructionType.SUBI ||
+        return type == InstructionType.DADDI || type == InstructionType.DSUBI ||
                 type == InstructionType.LW || type == InstructionType.SW;
     }
 
@@ -203,17 +206,23 @@ public class Instruction {
             case SUB_D:
             case MUL_D:
             case DIV_D:
+            case ADD_S:
+            case SUB_S:
+            case MUL_S:
+            case DIV_S:
                 return String.format("%s %s, %s, %s", type.name(), dest, src1, src2);
-            case ADDI:
-            case SUBI:
+            case DADDI:
+            case DSUBI:
                 return String.format("%s %s, %s, %d", type.name(), dest, src1, immediate);
             case L_D:
             case L_S:
             case LW:
+            case LD:
                 return String.format("%s %s, %s(%s)", type.name(), dest, src2, src1);
             case S_D:
             case S_S:
             case SW:
+            case SD:
                 return String.format("%s %s, %s(%s)", type.name(), dest, src2, src1);
             case BEQ:
             case BNE:
