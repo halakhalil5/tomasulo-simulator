@@ -79,6 +79,8 @@ public class ExecutionEngine {
         memory = new Memory();
         // Preload memory with hard-coded test data for cache/memory testing
         memory.preloadWithTestData();
+        // Set memory reference in cache so it can load blocks
+        cache.setMemory(memory);
     }
 
     public void loadProgram(List<Instruction> instructions) {
@@ -400,10 +402,9 @@ public class ExecutionEngine {
         int address = (int) registerFile.getValue(base) + offset;
         inst.setAddress(address);
 
-        // Check cache and set latency: effective load latency = loadLatency + cache hit
-        // latency (+ miss penalty if miss)
-        int cacheLatency = cache.accessLoad(address);
-        int latency = config.loadLatency + cacheLatency;
+        // Cache will be accessed during execution stage, not issue
+        // Set initial latency to load latency (cache latency added during execution)
+        int latency = config.loadLatency;
 
         buf.setLoadInstruction(inst, address, latency);
         registerFile.setStatus(inst.getDest(), buf.getName());
@@ -437,10 +438,9 @@ public class ExecutionEngine {
             value = registerFile.getValue(srcReg);
         }
 
-        // Effective store latency = storeLatency + cache hit latency (+ miss penalty if
-        // miss)
-        int cacheLatency = cache.accessStore(address);
-        int latency = config.storeLatency + cacheLatency;
+        // Cache will be accessed during execution stage, not issue
+        // Set initial latency to store latency (cache latency added during execution)
+        int latency = config.storeLatency;
 
         buf.setStoreInstruction(inst, address, value, q, latency);
 
@@ -533,6 +533,18 @@ public class ExecutionEngine {
                 if (buf.getInstruction().getExecStartTime() == -1) {
                     buf.getInstruction().setExecStartTime(currentCycle);
                 }
+                // Access cache at the start of execution (first cycle only)
+                if (!buf.isCacheAccessed()) {
+                    double memoryValue = memory.load(buf.getAddress());
+                    int cacheLatency = cache.accessLoad(buf.getAddress(), memoryValue);
+                    buf.addCacheLatency(cacheLatency);
+                    buf.setCacheAccessed(true);
+                    // Log cache access to cycle log
+                    String lastCacheLog = cache.getLastAccess();
+                    if (!lastCacheLog.isEmpty()) {
+                        cycleLog.add(lastCacheLog);
+                    }
+                }
                 buf.decrementCycles();
                 if (buf.isComplete()) {
                     double value = memory.load(buf.getAddress());
@@ -547,6 +559,17 @@ public class ExecutionEngine {
             if (buf.isReady() && buf.getRemainingCycles() > 0) {
                 if (buf.getInstruction().getExecStartTime() == -1) {
                     buf.getInstruction().setExecStartTime(currentCycle);
+                }
+                // Access cache at the start of execution (first cycle only)
+                if (!buf.isCacheAccessed()) {
+                    int cacheLatency = cache.accessStore(buf.getAddress(), buf.getValue());
+                    buf.addCacheLatency(cacheLatency);
+                    buf.setCacheAccessed(true);
+                    // Log cache access to cycle log
+                    String lastCacheLog = cache.getLastAccess();
+                    if (!lastCacheLog.isEmpty()) {
+                        cycleLog.add(lastCacheLog);
+                    }
                 }
                 buf.decrementCycles();
                 if (buf.isComplete()) {

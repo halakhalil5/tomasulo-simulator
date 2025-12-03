@@ -23,16 +23,21 @@ public class Cache {
 
     private Map<Integer, CacheBlock> cache;
     private List<String> accessLog;
+    private Memory memory; // Reference to memory for loading blocks
 
     private static class CacheBlock {
         boolean valid;
         int tag;
         byte[] data;
+        double value; // Store the actual value loaded from memory
+        int blockStartAddress; // Starting address of this cached block
 
         CacheBlock(int blockSize) {
             this.valid = false;
             this.tag = -1;
             this.data = new byte[blockSize];
+            this.value = 0.0;
+            this.blockStartAddress = -1;
         }
     }
 
@@ -45,6 +50,7 @@ public class Cache {
 
         this.cache = new HashMap<>();
         this.accessLog = new ArrayList<>();
+        this.memory = null;
 
         // Initialize cache blocks
         for (int i = 0; i < numBlocks; i++) {
@@ -52,11 +58,15 @@ public class Cache {
         }
     }
 
+    public void setMemory(Memory memory) {
+        this.memory = memory;
+    }
+
     /**
      * Access cache for load operation
      * Returns latency (hitLatency for hit, hitLatency + missPenalty for miss)
      */
-    public int accessLoad(int address) {
+    public int accessLoad(int address, double memoryValue) {
         int blockOffset = address % blockSize;
         int index = (address / blockSize) % numBlocks;
         int tag = address / (blockSize * numBlocks);
@@ -69,13 +79,24 @@ public class Cache {
                     address, tag, index, blockOffset));
             return hitLatency;
         } else {
-            // Cache miss
+            // Cache miss - load entire block from memory
             accessLog.add(String.format("Cycle: Load MISS - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d)",
                     address, tag, index, blockOffset));
 
-            // Load block from memory (simulated)
+            // Calculate block start address (aligned to block size)
+            int blockStartAddr = (address / blockSize) * blockSize;
+
+            // Load entire block from memory
             block.valid = true;
             block.tag = tag;
+            block.blockStartAddress = blockStartAddr;
+
+            // Load the requested address value
+            if (memory != null) {
+                block.value = memory.load(address);
+            } else {
+                block.value = memoryValue;
+            }
 
             return hitLatency + missPenalty;
         }
@@ -85,7 +106,7 @@ public class Cache {
      * Access cache for store operation
      * Returns latency (hitLatency for hit, hitLatency + missPenalty for miss)
      */
-    public int accessStore(int address) {
+    public int accessStore(int address, double memoryValue) {
         int blockOffset = address % blockSize;
         int index = (address / blockSize) % numBlocks;
         int tag = address / (blockSize * numBlocks);
@@ -93,18 +114,24 @@ public class Cache {
         CacheBlock block = cache.get(index);
 
         if (block.valid && block.tag == tag) {
-            // Cache hit
+            // Cache hit - update value
             accessLog.add(String.format("Cycle: Store HIT - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d)",
                     address, tag, index, blockOffset));
+            block.value = memoryValue;
             return hitLatency;
         } else {
-            // Cache miss
+            // Cache miss - load entire block from memory first
             accessLog.add(String.format("Cycle: Store MISS - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d)",
                     address, tag, index, blockOffset));
 
-            // Load block from memory (simulated)
+            // Calculate block start address (aligned to block size)
+            int blockStartAddr = (address / blockSize) * blockSize;
+
+            // Load entire block from memory, then update with new value
             block.valid = true;
             block.tag = tag;
+            block.blockStartAddress = blockStartAddr;
+            block.value = memoryValue;
 
             return hitLatency + missPenalty;
         }
@@ -166,20 +193,38 @@ public class Cache {
         public final boolean valid;
         public final int tag;
         public final byte[] data;
+        public final double value; // Store the actual double value
+        public final int blockStartAddress; // Block start address
 
-        public CacheBlockInfo(boolean valid, int tag, byte[] data) {
+        public CacheBlockInfo(boolean valid, int tag, byte[] data, double value, int blockStartAddress) {
             this.valid = valid;
             this.tag = tag;
             this.data = data != null ? data.clone() : new byte[0];
+            this.value = value;
+            this.blockStartAddress = blockStartAddress;
         }
 
         public String getDataHex() {
-            if (data == null || data.length == 0) return "";
+            if (data == null || data.length == 0)
+                return "";
             StringBuilder sb = new StringBuilder();
             for (byte b : data) {
                 sb.append(String.format("%02X", b));
             }
             return sb.toString();
+        }
+
+        public String getDataValue() {
+            if (!valid)
+                return "";
+            // Format as decimal with up to 4 decimal places, removing trailing zeros
+            return String.format("%.4f", value).replaceAll("\\.?0+$", "");
+        }
+
+        public String getBlockAddress() {
+            if (!valid || blockStartAddress < 0)
+                return "";
+            return String.format("0x%X", blockStartAddress);
         }
     }
 
@@ -191,9 +236,10 @@ public class Cache {
         for (int i = 0; i < numBlocks; i++) {
             CacheBlock block = cache.get(i);
             if (block != null) {
-                snap.put(i, new CacheBlockInfo(block.valid, block.tag, block.data));
+                snap.put(i,
+                        new CacheBlockInfo(block.valid, block.tag, block.data, block.value, block.blockStartAddress));
             } else {
-                snap.put(i, new CacheBlockInfo(false, -1, new byte[0]));
+                snap.put(i, new CacheBlockInfo(false, -1, new byte[0], 0.0, -1));
             }
         }
         return snap;

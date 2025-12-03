@@ -456,21 +456,25 @@ public class TomasuloSimulator extends Application {
 
         TableColumn<CacheTableRow, String> indexCol = new TableColumn<>("Index");
         indexCol.setCellValueFactory(new PropertyValueFactory<>("index"));
-        indexCol.setPrefWidth(80);
+        indexCol.setPrefWidth(60);
 
         TableColumn<CacheTableRow, String> validCol = new TableColumn<>("Valid");
         validCol.setCellValueFactory(new PropertyValueFactory<>("valid"));
-        validCol.setPrefWidth(80);
+        validCol.setPrefWidth(60);
 
         TableColumn<CacheTableRow, String> tagCol = new TableColumn<>("Tag");
         tagCol.setCellValueFactory(new PropertyValueFactory<>("tag"));
-        tagCol.setPrefWidth(100);
+        tagCol.setPrefWidth(80);
 
-        TableColumn<CacheTableRow, String> dataCol = new TableColumn<>("Value (hex)");
+        TableColumn<CacheTableRow, String> addressCol = new TableColumn<>("Block Addr");
+        addressCol.setCellValueFactory(new PropertyValueFactory<>("address"));
+        addressCol.setPrefWidth(100);
+
+        TableColumn<CacheTableRow, String> dataCol = new TableColumn<>("Value");
         dataCol.setCellValueFactory(new PropertyValueFactory<>("data"));
-        dataCol.setPrefWidth(300);
+        dataCol.setPrefWidth(100);
 
-        cacheTable.getColumns().addAll(indexCol, validCol, tagCol, dataCol);
+        cacheTable.getColumns().addAll(indexCol, validCol, tagCol, addressCol, dataCol);
 
         TextArea cacheLogArea = new TextArea();
         cacheLogArea.setEditable(false);
@@ -727,8 +731,9 @@ public class TomasuloSimulator extends Application {
             com.tomasulo.Cache.CacheBlockInfo info = cacheSnapshot.get(index);
             String valid = info.valid ? "Yes" : "No";
             String tag = info.valid ? String.valueOf(info.tag) : "";
-            String dataHex = info.getDataHex();
-            data.add(new CacheTableRow(index, valid, tag, dataHex));
+            String blockAddr = info.getBlockAddress();
+            String dataValue = info.getDataValue();
+            data.add(new CacheTableRow(index, valid, tag, blockAddr, dataValue));
         }
 
         cacheTable.setItems(data);
@@ -1043,12 +1048,13 @@ public class TomasuloSimulator extends Application {
     }
 
     public static class CacheTableRow {
-        private String index, valid, tag, data;
+        private String index, valid, tag, address, data;
 
-        public CacheTableRow(int index, String valid, String tag, String data) {
+        public CacheTableRow(int index, String valid, String tag, String address, String data) {
             this.index = String.valueOf(index);
             this.valid = valid;
             this.tag = tag;
+            this.address = address;
             this.data = data;
         }
 
@@ -1062,6 +1068,10 @@ public class TomasuloSimulator extends Application {
 
         public String getTag() {
             return tag;
+        }
+
+        public String getAddress() {
+            return address;
         }
 
         public String getData() {

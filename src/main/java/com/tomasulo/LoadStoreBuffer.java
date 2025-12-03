@@ -9,6 +9,7 @@ public class LoadStoreBuffer {
     private Instruction instruction;
     private int remainingCycles;
     private boolean isLoad;
+    private boolean cacheAccessed; // Track if cache has been accessed for this operation
 
     public LoadStoreBuffer(String name) {
         this.name = name;
@@ -24,6 +25,7 @@ public class LoadStoreBuffer {
         instruction = null;
         remainingCycles = 0;
         isLoad = false;
+        cacheAccessed = false;
     }
 
     public void setLoadInstruction(Instruction inst, int address, int latency) {
@@ -33,6 +35,7 @@ public class LoadStoreBuffer {
         this.remainingCycles = latency;
         this.isLoad = true;
         this.q = "";
+        this.cacheAccessed = false;
     }
 
     public void setStoreInstruction(Instruction inst, int address, double value, String q, int latency) {
@@ -43,6 +46,7 @@ public class LoadStoreBuffer {
         this.q = q;
         this.remainingCycles = latency;
         this.isLoad = false;
+        this.cacheAccessed = false;
     }
 
     public boolean isReady() {
@@ -105,6 +109,18 @@ public class LoadStoreBuffer {
 
     public void setQ(String q) {
         this.q = q;
+    }
+
+    public boolean isCacheAccessed() {
+        return cacheAccessed;
+    }
+
+    public void setCacheAccessed(boolean cacheAccessed) {
+        this.cacheAccessed = cacheAccessed;
+    }
+
+    public void addCacheLatency(int additionalCycles) {
+        this.remainingCycles += additionalCycles;
     }
 
     public Instruction getInstruction() {
