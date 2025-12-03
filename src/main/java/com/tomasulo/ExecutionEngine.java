@@ -332,7 +332,8 @@ public class ExecutionEngine {
             vk = registerFile.getValue(src2);
 
         int latency;
-        if (inst.getType() == Instruction.InstructionType.ADD_D || inst.getType() == Instruction.InstructionType.ADD_S) {
+        if (inst.getType() == Instruction.InstructionType.ADD_D
+                || inst.getType() == Instruction.InstructionType.ADD_S) {
             latency = config.addLatency;
         } else {
             latency = config.subLatency;
@@ -365,7 +366,8 @@ public class ExecutionEngine {
             vk = registerFile.getValue(src2);
 
         int latency;
-        if (inst.getType() == Instruction.InstructionType.MUL_D || inst.getType() == Instruction.InstructionType.MUL_S) {
+        if (inst.getType() == Instruction.InstructionType.MUL_D
+                || inst.getType() == Instruction.InstructionType.MUL_S) {
             latency = config.mulLatency;
         } else {
             latency = config.divLatency;
@@ -632,8 +634,8 @@ public class ExecutionEngine {
         if (winner == null)
             return;
 
-        cycleLog.add("CDB Write: " + winner.tag + " = " + winner.value + " (instruction: " + 
-                     (winner.instruction != null ? winner.instruction.toString() : "null") + ")");
+        cycleLog.add("CDB Write: " + winner.tag + " = " + winner.value + " (instruction: " +
+                (winner.instruction != null ? winner.instruction.toString() : "null") + ")");
 
         // Update reservation stations
         for (ReservationStation rs : addSubStations) {
@@ -669,14 +671,17 @@ public class ExecutionEngine {
         for (String reg : registerFile.getRegisterStatus().keySet()) {
             String regStatus = registerFile.getStatus(reg);
             if (regStatus != null && !regStatus.isEmpty() && regStatus.equals(winner.tag)) {
-                cycleLog.add("Updating register " + reg + " with value " + winner.value + " (clearing Qi: " + winner.tag + ")");
+                cycleLog.add("Updating register " + reg + " with value " + winner.value + " (clearing Qi: " + winner.tag
+                        + ")");
                 registerFile.setValue(reg, winner.value);
                 registerFile.clearStatus(reg);
                 foundRegister = true;
             }
         }
-        if (!foundRegister && winner.instruction != null && !winner.instruction.isBranch() && !winner.instruction.isStore()) {
-            cycleLog.add("WARNING: No register found with Qi=" + winner.tag + " for instruction " + winner.instruction.toString());
+        if (!foundRegister && winner.instruction != null && !winner.instruction.isBranch()
+                && !winner.instruction.isStore()) {
+            cycleLog.add("WARNING: No register found with Qi=" + winner.tag + " for instruction "
+                    + winner.instruction.toString());
         }
 
         // Update load/store buffers
@@ -727,12 +732,12 @@ public class ExecutionEngine {
         // 2. All reservation stations are empty
         // 3. All load/store buffers are empty
         // 4. All branch stations are empty
-        
+
         // Check if there are more instructions to issue
         if (instructionQueue.hasMoreInstructions()) {
             return false;
         }
-        
+
         // Check all reservation stations
         for (ReservationStation rs : addSubStations) {
             if (rs.isBusy())
@@ -750,7 +755,7 @@ public class ExecutionEngine {
             if (rs.isBusy())
                 return false;
         }
-        
+
         // Check all load/store buffers
         for (LoadStoreBuffer buf : loadBuffers) {
             if (buf.isBusy())
