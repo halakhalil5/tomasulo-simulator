@@ -77,6 +77,8 @@ public class ExecutionEngine {
         cdb = new CommonDataBus();
         cache = new Cache(config.cacheSize, config.blockSize, config.cacheHitLatency, config.cacheMissPenalty);
         memory = new Memory();
+        // Preload memory with hard-coded test data for cache/memory testing
+        memory.preloadWithTestData();
     }
 
     public void loadProgram(List<Instruction> instructions) {
@@ -380,10 +382,11 @@ public class ExecutionEngine {
         int address = (int) registerFile.getValue(base) + offset;
         inst.setAddress(address);
 
-        // Check cache and set latency
-        int latency = cache.accessLoad(address);
+    // Check cache and set latency: effective load latency = loadLatency + cache hit latency (+ miss penalty if miss)
+    int cacheLatency = cache.accessLoad(address);
+    int latency = config.loadLatency + cacheLatency;
 
-        buf.setLoadInstruction(inst, address, latency);
+    buf.setLoadInstruction(inst, address, latency);
         registerFile.setStatus(inst.getDest(), buf.getName());
 
         return true;
@@ -415,9 +418,11 @@ public class ExecutionEngine {
             value = registerFile.getValue(srcReg);
         }
 
-        int latency = cache.accessStore(address);
+    // Effective store latency = storeLatency + cache hit latency (+ miss penalty if miss)
+    int cacheLatency = cache.accessStore(address);
+    int latency = config.storeLatency + cacheLatency;
 
-        buf.setStoreInstruction(inst, address, value, q, latency);
+    buf.setStoreInstruction(inst, address, value, q, latency);
 
         return true;
     }

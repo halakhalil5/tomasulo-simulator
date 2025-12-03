@@ -30,6 +30,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 public class TomasuloSimulator extends Application {
@@ -159,6 +160,9 @@ public class TomasuloSimulator extends Application {
         MenuItem cacheItem = new MenuItem("Configure Cache...");
         cacheItem.setOnAction(e -> showCacheDialog());
 
+    MenuItem memoryInitItem = new MenuItem("Initialize Memory...");
+    memoryInitItem.setOnAction(e -> showMemoryInitDialog());
+
         MenuItem stationItem = new MenuItem("Set Station Sizes...");
         stationItem.setOnAction(e -> showStationDialog());
 
@@ -166,6 +170,7 @@ public class TomasuloSimulator extends Application {
         registerItem.setOnAction(e -> showRegisterDialog());
 
         configMenu.getItems().addAll(latencyItem, cacheItem, stationItem, registerItem);
+    configMenu.getItems().addAll(new SeparatorMenuItem(), memoryInitItem);
 
         // Samples Menu
         Menu samplesMenu = new Menu("Sample Programs");
@@ -447,24 +452,32 @@ public class TomasuloSimulator extends Application {
         Label label = new Label("Cache Status:");
         label.setStyle("-fx-font-weight: bold;");
 
-        cacheTable = new TableView<>();
+    cacheTable = new TableView<>();
 
-        TableColumn<CacheTableRow, String> indexCol = new TableColumn<>("Index");
-        indexCol.setCellValueFactory(new PropertyValueFactory<>("index"));
-        indexCol.setPrefWidth(100);
+    TableColumn<CacheTableRow, String> indexCol = new TableColumn<>("Index");
+    indexCol.setCellValueFactory(new PropertyValueFactory<>("index"));
+    indexCol.setPrefWidth(80);
 
-        TableColumn<CacheTableRow, String> statusCol = new TableColumn<>("Status");
-        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        statusCol.setPrefWidth(300);
+    TableColumn<CacheTableRow, String> validCol = new TableColumn<>("Valid");
+    validCol.setCellValueFactory(new PropertyValueFactory<>("valid"));
+    validCol.setPrefWidth(80);
 
-        cacheTable.getColumns().addAll(indexCol, statusCol);
+    TableColumn<CacheTableRow, String> tagCol = new TableColumn<>("Tag");
+    tagCol.setCellValueFactory(new PropertyValueFactory<>("tag"));
+    tagCol.setPrefWidth(100);
 
-        TextArea cacheLogArea = new TextArea();
-        cacheLogArea.setEditable(false);
-        cacheLogArea.setPrefRowCount(10);
-        cacheLogArea.setPromptText("Cache access log will appear here...");
+    TableColumn<CacheTableRow, String> dataCol = new TableColumn<>("Value (hex)");
+    dataCol.setCellValueFactory(new PropertyValueFactory<>("data"));
+    dataCol.setPrefWidth(300);
 
-        box.getChildren().addAll(label, cacheTable, new Label("Cache Access Log:"), cacheLogArea);
+    cacheTable.getColumns().addAll(indexCol, validCol, tagCol, dataCol);
+
+    TextArea cacheLogArea = new TextArea();
+    cacheLogArea.setEditable(false);
+    cacheLogArea.setPrefRowCount(10);
+    cacheLogArea.setPromptText("Cache access log will appear here...");
+
+    box.getChildren().addAll(label, cacheTable, new Label("Cache Access Log:"), cacheLogArea);
 
         return box;
     }
@@ -688,12 +701,16 @@ public class TomasuloSimulator extends Application {
     private void updateCacheTable() {
         ObservableList<CacheTableRow> data = FXCollections.observableArrayList();
 
-        Map<Integer, String> cacheSnapshot = engine.getCache().getCacheSnapshot();
+        Map<Integer, com.tomasulo.Cache.CacheBlockInfo> cacheSnapshot = engine.getCache().getDetailedSnapshot();
         List<Integer> indices = new ArrayList<>(cacheSnapshot.keySet());
         Collections.sort(indices);
 
         for (Integer index : indices) {
-            data.add(new CacheTableRow(index, cacheSnapshot.get(index)));
+            com.tomasulo.Cache.CacheBlockInfo info = cacheSnapshot.get(index);
+            String valid = info.valid ? "Yes" : "No";
+            String tag = info.valid ? String.valueOf(info.tag) : "";
+            String dataHex = info.getDataHex();
+            data.add(new CacheTableRow(index, valid, tag, dataHex));
         }
 
         cacheTable.setItems(data);
@@ -719,6 +736,75 @@ public class TomasuloSimulator extends Application {
         RegisterInitDialog dialog = new RegisterInitDialog(engine.getRegisterFile());
         dialog.showAndWait();
         updateRegisterTables();
+    }
+
+    private void showMemoryInitDialog() {
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setTitle("Initialize Memory");
+
+        VBox box = new VBox(10);
+        box.setPadding(new Insets(10));
+
+        Label info = new Label("Enter address:value pairs (one per line).\nAddress may be decimal or hex (0x...). Example:\n0x100: 3.14\n256: 42");
+        TextArea ta = new TextArea();
+        ta.setPrefRowCount(10);
+        // Provide a small sample
+        ta.setText("0x100: 1.23\n0x110: 4.56\n256: 42\n260: 100.5");
+
+        HBox buttons = new HBox(10);
+        buttons.setAlignment(Pos.CENTER_RIGHT);
+        Button ok = new Button("OK");
+        Button cancel = new Button("Cancel");
+
+        ok.setOnAction(e -> {
+            String[] lines = ta.getText().split("\\r?\\n");
+            StringBuilder errors = new StringBuilder();
+            int applied = 0;
+            for (int i = 0; i < lines.length; i++) {
+                String line = lines[i].trim();
+                if (line.isEmpty()) continue;
+                try {
+                    String[] parts;
+                    if (line.contains(":")) parts = line.split(":", 2);
+                    else if (line.contains("=")) parts = line.split("=", 2);
+                    else parts = line.split("\\s+", 2);
+
+                    if (parts.length < 2) throw new IllegalArgumentException("Bad format");
+                    String a = parts[0].trim();
+                    String v = parts[1].trim();
+                    int addr;
+                    if (a.startsWith("0x") || a.startsWith("0X")) {
+                        addr = Integer.parseInt(a.substring(2), 16);
+                    } else {
+                        addr = Integer.parseInt(a);
+                    }
+                    double val = Double.parseDouble(v);
+                    engine.getMemory().initialize(addr, val);
+                    applied++;
+                } catch (Exception ex) {
+                    errors.append("Line ").append(i + 1).append(": ").append(ex.getMessage()).append("\n");
+                }
+            }
+
+            if (errors.length() > 0) {
+                showAlert("Memory Init Errors", "Some lines failed:\n" + errors.toString());
+            }
+            if (applied > 0) {
+                updateCacheTable();
+            }
+            dialog.close();
+        });
+
+        cancel.setOnAction(e -> dialog.close());
+
+        buttons.getChildren().addAll(ok, cancel);
+
+        box.getChildren().addAll(info, ta, buttons);
+
+        Scene scene = new Scene(box, 450, 300);
+        dialog.setScene(scene);
+        dialog.showAndWait();
     }
 
     private void showAboutDialog() {
@@ -933,19 +1019,18 @@ public class TomasuloSimulator extends Application {
     }
 
     public static class CacheTableRow {
-        private String index, status;
+        private String index, valid, tag, data;
 
-        public CacheTableRow(int index, String status) {
+        public CacheTableRow(int index, String valid, String tag, String data) {
             this.index = String.valueOf(index);
-            this.status = status;
+            this.valid = valid;
+            this.tag = tag;
+            this.data = data;
         }
 
-        public String getIndex() {
-            return index;
-        }
-
-        public String getStatus() {
-            return status;
-        }
+        public String getIndex() { return index; }
+        public String getValid() { return valid; }
+        public String getTag() { return tag; }
+        public String getData() { return data; }
     }
 }

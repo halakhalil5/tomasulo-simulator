@@ -1,6 +1,9 @@
 package com.tomasulo;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Cache implementation for Tomasulo simulator
@@ -154,6 +157,46 @@ public class Cache {
             }
         }
         return snapshot;
+    }
+
+    /**
+     * Detailed snapshot exposing per-block fields: valid, tag, and raw data.
+     */
+    public static class CacheBlockInfo {
+        public final boolean valid;
+        public final int tag;
+        public final byte[] data;
+
+        public CacheBlockInfo(boolean valid, int tag, byte[] data) {
+            this.valid = valid;
+            this.tag = tag;
+            this.data = data != null ? data.clone() : new byte[0];
+        }
+
+        public String getDataHex() {
+            if (data == null || data.length == 0) return "";
+            StringBuilder sb = new StringBuilder();
+            for (byte b : data) {
+                sb.append(String.format("%02X", b));
+            }
+            return sb.toString();
+        }
+    }
+
+    /**
+     * Returns a detailed snapshot for GUI consumption.
+     */
+    public Map<Integer, CacheBlockInfo> getDetailedSnapshot() {
+        Map<Integer, CacheBlockInfo> snap = new HashMap<>();
+        for (int i = 0; i < numBlocks; i++) {
+            CacheBlock block = cache.get(i);
+            if (block != null) {
+                snap.put(i, new CacheBlockInfo(block.valid, block.tag, block.data));
+            } else {
+                snap.put(i, new CacheBlockInfo(false, -1, new byte[0]));
+            }
+        }
+        return snap;
     }
 
     // Getters
