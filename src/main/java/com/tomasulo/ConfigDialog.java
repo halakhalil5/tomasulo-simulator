@@ -2,7 +2,10 @@ package com.tomasulo;
 
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Modality;
@@ -211,13 +214,17 @@ public class ConfigDialog extends Stage {
         TextField intField = new TextField(String.valueOf(config.integerStations));
         grid.add(intField, 1, 3);
 
+    grid.add(new Label("Branch stations:"), 0, 4);
+    TextField branchField = new TextField(String.valueOf(config.branchStations));
+    grid.add(branchField, 1, 4);
+
         Label bufLabel = new Label("Load/Store Buffers:");
         bufLabel.setStyle("-fx-font-weight: bold;");
         grid.add(bufLabel, 0, 4, 2, 1);
 
-        grid.add(new Label("Load buffers:"), 0, 5);
-        TextField loadField = new TextField(String.valueOf(config.loadBuffers));
-        grid.add(loadField, 1, 5);
+    grid.add(new Label("Load buffers:"), 0, 5);
+    TextField loadField = new TextField(String.valueOf(config.loadBuffers));
+    grid.add(loadField, 1, 5);
 
         grid.add(new Label("Store buffers:"), 0, 6);
         TextField storeField = new TextField(String.valueOf(config.storeBuffers));
@@ -243,6 +250,7 @@ public class ConfigDialog extends Stage {
                 config.addSubStations = Integer.parseInt(addSubField.getText());
                 config.mulDivStations = Integer.parseInt(mulDivField.getText());
                 config.integerStations = Integer.parseInt(intField.getText());
+                config.branchStations = Integer.parseInt(branchField.getText());
                 config.loadBuffers = Integer.parseInt(loadField.getText());
                 config.storeBuffers = Integer.parseInt(storeField.getText());
                 config.instructionQueueSize = Integer.parseInt(queueField.getText());

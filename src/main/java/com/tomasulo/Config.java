@@ -5,6 +5,7 @@ public class Config {
     public int addSubStations = 3;
     public int mulDivStations = 2;
     public int integerStations = 2;
+    public int branchStations = 1;
     public int loadBuffers = 3;
     public int storeBuffers = 3;
 
@@ -47,6 +48,7 @@ public class Config {
         c.addSubStations = this.addSubStations;
         c.mulDivStations = this.mulDivStations;
         c.integerStations = this.integerStations;
+    c.branchStations = this.branchStations;
         c.loadBuffers = this.loadBuffers;
         c.storeBuffers = this.storeBuffers;
 

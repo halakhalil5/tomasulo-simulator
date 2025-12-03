@@ -10,6 +10,7 @@ public class ExecutionEngine {
     private List<ReservationStation> addSubStations;
     private List<ReservationStation> mulDivStations;
     private List<ReservationStation> intStations;
+    private List<ReservationStation> branchStations;
     private List<LoadStoreBuffer> loadBuffers;
     private List<LoadStoreBuffer> storeBuffers;
     private RegisterFile registerFile;
@@ -22,17 +23,7 @@ public class ExecutionEngine {
     private Map<String, Integer> labels;
     private List<String> cycleLog;
     private int branchBusyUntil;
-    private static class PendingBranch {
-        Instruction inst;
-        int remainingCycles;
-
-        PendingBranch(Instruction inst, int cycles) {
-            this.inst = inst;
-            this.remainingCycles = cycles;
-        }
-    }
-
-    private List<PendingBranch> pendingBranches;
+    // Branch reservation stations
 
     public ExecutionEngine(Config config) {
         this.config = config;
@@ -41,7 +32,7 @@ public class ExecutionEngine {
         this.labels = new HashMap<>();
         this.cycleLog = new ArrayList<>();
         this.branchBusyUntil = -1;
-    this.pendingBranches = new ArrayList<>();
+    // branchStations list initialized in initializeComponents
 
         initializeComponents();
     }
@@ -61,6 +52,12 @@ public class ExecutionEngine {
         intStations = new ArrayList<>();
         for (int i = 0; i < config.integerStations; i++) {
             intStations.add(new ReservationStation("Int" + (i + 1)));
+        }
+
+        // Branch reservation stations
+        branchStations = new ArrayList<>();
+        for (int i = 0; i < config.branchStations; i++) {
+            branchStations.add(new ReservationStation("Br" + (i + 1)));
         }
 
         // Initialize load/store buffers
@@ -434,18 +431,26 @@ public class ExecutionEngine {
             return false; // Wait for operands
         }
 
-        // Record that the branch was issued; actual evaluation happens when the
-        // branch finishes execution in executeStage.
+        // Need a free branch reservation station
+        ReservationStation rs = findFreeStation(branchStations);
+        if (rs == null) return false;
+
+        // Prepare operand values or Qi tags
+        double vj = 0;
+        double vk = 0;
+        String qj = registerFile.getStatus(src1);
+        String qk = registerFile.getStatus(src2);
+
+        if (qj.isEmpty()) vj = registerFile.getValue(src1);
+        if (qk.isEmpty()) vk = registerFile.getValue(src2);
+
+        // Set branch into branch RS with branch latency
+        rs.setInstruction(inst, inst.getType().name(), vj, vk, qj, qk, config.branchLatency);
+
         inst.setIssueTime(currentCycle);
-        inst.setExecStartTime(-1);
-        inst.setExecEndTime(-1);
 
-        // Stall issuing until branch completes (issue happens in cycle C, execution
-        // will start next cycle and last config.branchLatency cycles).
+        // Stall issuing until branch completes execution
         this.branchBusyUntil = currentCycle + config.branchLatency;
-
-        // Track pending branch with remaining execution cycles
-        pendingBranches.add(new PendingBranch(inst, config.branchLatency));
 
         return true;
     }
@@ -526,31 +531,27 @@ public class ExecutionEngine {
             }
         }
 
-        // Process pending branches: decrement remaining cycles and when a branch
-        // finishes execution evaluate its outcome and request a CDB write so the
-        // branch effect is applied in the write stage (next cycle).
-        List<PendingBranch> finishedBranches = new ArrayList<>();
-        for (PendingBranch pb : pendingBranches) {
-            Instruction b = pb.inst;
-            if (pb.remainingCycles > 0) {
-                if (b.getExecStartTime() == -1) {
-                    b.setExecStartTime(currentCycle);
+        // Execute branch reservation stations
+        for (ReservationStation rs : branchStations) {
+            if (rs.isReady() && rs.getRemainingCycles() > 0) {
+                if (rs.getInstruction().getExecStartTime() == -1) {
+                    rs.getInstruction().setExecStartTime(currentCycle);
                 }
-                pb.remainingCycles--;
-                if (pb.remainingCycles == 0) {
+                rs.decrementCycles();
+                if (rs.isComplete()) {
+                    // When branch completes execution, evaluate the condition using
+                    // the RS operands (vj/vk) and request a CDB write so the jump
+                    // is applied during the write stage.
+                    Instruction b = rs.getInstruction();
                     b.setExecEndTime(currentCycle);
-                    // Evaluate branch decision at execution completion
-                    double val1 = registerFile.getValue(b.getSrc1());
-                    double val2 = registerFile.getValue(b.getSrc2());
+                    double val1 = rs.getVj();
+                    double val2 = rs.getVk();
                     boolean taken = b.getType() == Instruction.InstructionType.BEQ ? (val1 == val2) : (val1 != val2);
                     b.setBranchTaken(taken);
-                    // Request CDB write so writeResultStage applies the jump on the next stage
-                    cdb.requestWrite("BRANCH" + b.getPc(), 0.0, b, issueOrder++);
-                    finishedBranches.add(pb);
+                    cdb.requestWrite(rs.getName(), 0.0, b, issueOrder++);
                 }
             }
         }
-        pendingBranches.removeAll(finishedBranches);
     }
 
     private void writeResultStage() {
@@ -685,6 +686,10 @@ public class ExecutionEngine {
 
     public List<ReservationStation> getIntStations() {
         return intStations;
+    }
+
+    public List<ReservationStation> getBranchStations() {
+        return branchStations;
     }
 
     public List<LoadStoreBuffer> getLoadBuffers() {

@@ -46,6 +46,7 @@ public class TomasuloSimulator extends Application {
     private TableView<RSTableRow> addSubTable;
     private TableView<RSTableRow> mulDivTable;
     private TableView<RSTableRow> intTable;
+    private TableView<RSTableRow> branchTable;
     private TableView<LSBufferTableRow> loadTable;
     private TableView<LSBufferTableRow> storeTable;
     private TableView<RegisterTableRow> intRegTable;
@@ -241,9 +242,15 @@ public class TomasuloSimulator extends Application {
         intLabel.setStyle("-fx-font-weight: bold;");
         intTable = createRSTable();
 
-        box.getChildren().addAll(addSubLabel, addSubTable,
-                mulDivLabel, mulDivTable,
-                intLabel, intTable);
+    // Branch Stations
+    Label branchLabel = new Label("Branch Reservation Stations:");
+    branchLabel.setStyle("-fx-font-weight: bold;");
+    branchTable = createRSTable();
+
+    box.getChildren().addAll(addSubLabel, addSubTable,
+        mulDivLabel, mulDivTable,
+        intLabel, intTable,
+        branchLabel, branchTable);
 
         return box;
     }
@@ -593,6 +600,13 @@ public class TomasuloSimulator extends Application {
             intData.add(new RSTableRow(rs));
         }
         intTable.setItems(intData);
+
+        // Update Branch table
+        ObservableList<RSTableRow> brData = FXCollections.observableArrayList();
+        for (ReservationStation rs : engine.getBranchStations()) {
+            brData.add(new RSTableRow(rs));
+        }
+        branchTable.setItems(brData);
     }
 
     private void updateLoadStoreBufferTables() {
