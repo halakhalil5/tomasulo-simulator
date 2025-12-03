@@ -917,8 +917,8 @@ public class TomasuloSimulator extends Application {
             this.name = rs.getName();
             this.busy = rs.isBusy() ? "Yes" : "No";
             this.op = rs.getOp() != null ? rs.getOp() : "";
-            this.vj = rs.isBusy() ? String.format("%.2f", rs.getVj()) : "";
-            this.vk = rs.isBusy() ? String.format("%.2f", rs.getVk()) : "";
+            this.vj = rs.isBusy() ? String.format("%.0f", rs.getVj()) : "";
+            this.vk = rs.isBusy() ? String.format("%.0f", rs.getVk()) : "";
             this.qj = rs.getQj() != null ? rs.getQj() : "";
             this.qk = rs.getQk() != null ? rs.getQk() : "";
             this.remaining = rs.isBusy() ? String.valueOf(rs.getRemainingCycles()) : "";
@@ -964,7 +964,7 @@ public class TomasuloSimulator extends Application {
             this.name = buf.getName();
             this.busy = buf.isBusy() ? "Yes" : "No";
             this.address = buf.isBusy() ? String.valueOf(buf.getAddress()) : "";
-            this.value = buf.isBusy() && !buf.isLoad() ? String.format("%.2f", buf.getValue()) : "";
+            this.value = buf.isBusy() && !buf.isLoad() ? String.format("%.0f", buf.getValue()) : "";
             this.q = buf.getQ() != null ? buf.getQ() : "";
             this.remaining = buf.isBusy() ? String.valueOf(buf.getRemainingCycles()) : "";
         }
@@ -999,7 +999,8 @@ public class TomasuloSimulator extends Application {
 
         public RegisterTableRow(String name, double value, String status) {
             this.name = name;
-            this.value = String.format("%.2f", value);
+            // Display as decimal integer (treated as integer, no floating-point)
+            this.value = String.format("%.0f", value);
             this.status = status != null ? status : "";
         }
 
