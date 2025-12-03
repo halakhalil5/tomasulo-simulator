@@ -32,7 +32,7 @@ public class ExecutionEngine {
         this.labels = new HashMap<>();
         this.cycleLog = new ArrayList<>();
         this.branchBusyUntil = -1;
-    // branchStations list initialized in initializeComponents
+        // branchStations list initialized in initializeComponents
 
         initializeComponents();
     }
@@ -171,7 +171,7 @@ public class ExecutionEngine {
                 return;
             }
         }
-    // issuance handled per-case below
+        // issuance handled per-case below
 
         switch (inst.getType()) {
             case ADD_D:
@@ -233,7 +233,8 @@ public class ExecutionEngine {
             case BEQ:
             case BNE:
                 // Branch only issues if operands ready
-                if (registerFile.getStatus(inst.getSrc1()).isEmpty() && registerFile.getStatus(inst.getSrc2()).isEmpty()) {
+                if (registerFile.getStatus(inst.getSrc1()).isEmpty()
+                        && registerFile.getStatus(inst.getSrc2()).isEmpty()) {
                     Instruction issuedInst = instructionQueue.issue();
                     if (issuedInst != null) {
                         boolean issuedOk = issueBranch(issuedInst);
@@ -249,17 +250,21 @@ public class ExecutionEngine {
     private boolean instructionReadyForLoad(Instruction inst) {
         String base = inst.getSrc1();
         // Base register must be ready and a free load buffer must exist
-        if (!registerFile.getStatus(base).isEmpty()) return false;
-        if (findFreeBuffer(loadBuffers) == null) return false;
+        if (!registerFile.getStatus(base).isEmpty())
+            return false;
+        if (findFreeBuffer(loadBuffers) == null)
+            return false;
 
         // Try to compute address (offset should be parseable)
         try {
             int offset = Integer.parseInt(inst.getSrc2());
             int address = (int) registerFile.getValue(base) + offset;
 
-            // If any store buffer already holds this address, stall to preserve memory ordering
+            // If any store buffer already holds this address, stall to preserve memory
+            // ordering
             for (LoadStoreBuffer sb : storeBuffers) {
-                if (sb.isBusy() && sb.getAddress() == address) return false;
+                if (sb.isBusy() && sb.getAddress() == address)
+                    return false;
             }
 
             return true;
@@ -278,8 +283,10 @@ public class ExecutionEngine {
         // Base register must be ready (to compute address). The source register
         // value may be produced later; we allow issuing a store with Q set so
         // it will receive the value when ready.
-        if (!registerFile.getStatus(base).isEmpty()) return false;
-        if (findFreeBuffer(storeBuffers) == null) return false;
+        if (!registerFile.getStatus(base).isEmpty())
+            return false;
+        if (findFreeBuffer(storeBuffers) == null)
+            return false;
 
         // Compute address and check both load and store buffers for conflicts
         try {
@@ -287,10 +294,12 @@ public class ExecutionEngine {
             int address = (int) registerFile.getValue(base) + offset;
 
             for (LoadStoreBuffer sb : storeBuffers) {
-                if (sb.isBusy() && sb.getAddress() == address) return false;
+                if (sb.isBusy() && sb.getAddress() == address)
+                    return false;
             }
             for (LoadStoreBuffer lb : loadBuffers) {
-                if (lb.isBusy() && lb.getAddress() == address) return false;
+                if (lb.isBusy() && lb.getAddress() == address)
+                    return false;
             }
 
             return true;
@@ -391,11 +400,12 @@ public class ExecutionEngine {
         int address = (int) registerFile.getValue(base) + offset;
         inst.setAddress(address);
 
-    // Check cache and set latency: effective load latency = loadLatency + cache hit latency (+ miss penalty if miss)
-    int cacheLatency = cache.accessLoad(address);
-    int latency = config.loadLatency + cacheLatency;
+        // Check cache and set latency: effective load latency = loadLatency + cache hit
+        // latency (+ miss penalty if miss)
+        int cacheLatency = cache.accessLoad(address);
+        int latency = config.loadLatency + cacheLatency;
 
-    buf.setLoadInstruction(inst, address, latency);
+        buf.setLoadInstruction(inst, address, latency);
         registerFile.setStatus(inst.getDest(), buf.getName());
 
         return true;
@@ -427,11 +437,12 @@ public class ExecutionEngine {
             value = registerFile.getValue(srcReg);
         }
 
-    // Effective store latency = storeLatency + cache hit latency (+ miss penalty if miss)
-    int cacheLatency = cache.accessStore(address);
-    int latency = config.storeLatency + cacheLatency;
+        // Effective store latency = storeLatency + cache hit latency (+ miss penalty if
+        // miss)
+        int cacheLatency = cache.accessStore(address);
+        int latency = config.storeLatency + cacheLatency;
 
-    buf.setStoreInstruction(inst, address, value, q, latency);
+        buf.setStoreInstruction(inst, address, value, q, latency);
 
         return true;
     }
@@ -447,7 +458,8 @@ public class ExecutionEngine {
 
         // Need a free branch reservation station
         ReservationStation rs = findFreeStation(branchStations);
-        if (rs == null) return false;
+        if (rs == null)
+            return false;
 
         // Prepare operand values or Qi tags
         double vj = 0;
@@ -455,8 +467,10 @@ public class ExecutionEngine {
         String qj = registerFile.getStatus(src1);
         String qk = registerFile.getStatus(src2);
 
-        if (qj.isEmpty()) vj = registerFile.getValue(src1);
-        if (qk.isEmpty()) vk = registerFile.getValue(src2);
+        if (qj.isEmpty())
+            vj = registerFile.getValue(src1);
+        if (qk.isEmpty())
+            vk = registerFile.getValue(src2);
 
         // Set branch into branch RS with branch latency
         rs.setInstruction(inst, inst.getType().name(), vj, vk, qj, qk, config.branchLatency);
@@ -613,7 +627,8 @@ public class ExecutionEngine {
             // If this write corresponds to a store buffer producing its value,
             // update the buffer's value/Q as usual.
             buf.updateValue(winner.tag, winner.value);
-            // If the CDB winner is the store buffer tag itself, perform the actual memory store
+            // If the CDB winner is the store buffer tag itself, perform the actual memory
+            // store
             // and clear the buffer now (this makes stores commit in the write stage).
             if (buf.getName().equals(winner.tag)) {
                 memory.store(buf.getAddress(), buf.getValue());
@@ -623,7 +638,8 @@ public class ExecutionEngine {
             }
         }
 
-        // If the write corresponds to a branch, apply the branch effect now (jump on write-back)
+        // If the write corresponds to a branch, apply the branch effect now (jump on
+        // write-back)
         if (winner.instruction != null && winner.instruction.isBranch()) {
             Instruction br = winner.instruction;
             br.setWriteTime(currentCycle);

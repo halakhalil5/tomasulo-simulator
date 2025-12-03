@@ -160,8 +160,8 @@ public class TomasuloSimulator extends Application {
         MenuItem cacheItem = new MenuItem("Configure Cache...");
         cacheItem.setOnAction(e -> showCacheDialog());
 
-    MenuItem memoryInitItem = new MenuItem("Initialize Memory...");
-    memoryInitItem.setOnAction(e -> showMemoryInitDialog());
+        MenuItem memoryInitItem = new MenuItem("Initialize Memory...");
+        memoryInitItem.setOnAction(e -> showMemoryInitDialog());
 
         MenuItem stationItem = new MenuItem("Set Station Sizes...");
         stationItem.setOnAction(e -> showStationDialog());
@@ -170,7 +170,7 @@ public class TomasuloSimulator extends Application {
         registerItem.setOnAction(e -> showRegisterDialog());
 
         configMenu.getItems().addAll(latencyItem, cacheItem, stationItem, registerItem);
-    configMenu.getItems().addAll(new SeparatorMenuItem(), memoryInitItem);
+        configMenu.getItems().addAll(new SeparatorMenuItem(), memoryInitItem);
 
         // Samples Menu
         Menu samplesMenu = new Menu("Sample Programs");
@@ -247,15 +247,15 @@ public class TomasuloSimulator extends Application {
         intLabel.setStyle("-fx-font-weight: bold;");
         intTable = createRSTable();
 
-    // Branch Stations
-    Label branchLabel = new Label("Branch Reservation Stations:");
-    branchLabel.setStyle("-fx-font-weight: bold;");
-    branchTable = createRSTable();
+        // Branch Stations
+        Label branchLabel = new Label("Branch Reservation Stations:");
+        branchLabel.setStyle("-fx-font-weight: bold;");
+        branchTable = createRSTable();
 
-    box.getChildren().addAll(addSubLabel, addSubTable,
-        mulDivLabel, mulDivTable,
-        intLabel, intTable,
-        branchLabel, branchTable);
+        box.getChildren().addAll(addSubLabel, addSubTable,
+                mulDivLabel, mulDivTable,
+                intLabel, intTable,
+                branchLabel, branchTable);
 
         return box;
     }
@@ -418,9 +418,9 @@ public class TomasuloSimulator extends Application {
         instCol.setCellValueFactory(new PropertyValueFactory<>("instruction"));
         instCol.setPrefWidth(250);
 
-    TableColumn<InstructionTableRow, String> iterCol = new TableColumn<>("Iter");
-    iterCol.setCellValueFactory(new PropertyValueFactory<>("iteration"));
-    iterCol.setPrefWidth(60);
+        TableColumn<InstructionTableRow, String> iterCol = new TableColumn<>("Iter");
+        iterCol.setCellValueFactory(new PropertyValueFactory<>("iteration"));
+        iterCol.setPrefWidth(60);
 
         TableColumn<InstructionTableRow, String> issueCol = new TableColumn<>("Issue");
         issueCol.setCellValueFactory(new PropertyValueFactory<>("issue"));
@@ -438,7 +438,7 @@ public class TomasuloSimulator extends Application {
         writeCol.setCellValueFactory(new PropertyValueFactory<>("write"));
         writeCol.setPrefWidth(80);
 
-    instructionTable.getColumns().addAll(iterCol, instCol, issueCol, execStartCol, execEndCol, writeCol);
+        instructionTable.getColumns().addAll(iterCol, instCol, issueCol, execStartCol, execEndCol, writeCol);
 
         box.getChildren().addAll(label, instructionTable);
 
@@ -452,32 +452,32 @@ public class TomasuloSimulator extends Application {
         Label label = new Label("Cache Status:");
         label.setStyle("-fx-font-weight: bold;");
 
-    cacheTable = new TableView<>();
+        cacheTable = new TableView<>();
 
-    TableColumn<CacheTableRow, String> indexCol = new TableColumn<>("Index");
-    indexCol.setCellValueFactory(new PropertyValueFactory<>("index"));
-    indexCol.setPrefWidth(80);
+        TableColumn<CacheTableRow, String> indexCol = new TableColumn<>("Index");
+        indexCol.setCellValueFactory(new PropertyValueFactory<>("index"));
+        indexCol.setPrefWidth(80);
 
-    TableColumn<CacheTableRow, String> validCol = new TableColumn<>("Valid");
-    validCol.setCellValueFactory(new PropertyValueFactory<>("valid"));
-    validCol.setPrefWidth(80);
+        TableColumn<CacheTableRow, String> validCol = new TableColumn<>("Valid");
+        validCol.setCellValueFactory(new PropertyValueFactory<>("valid"));
+        validCol.setPrefWidth(80);
 
-    TableColumn<CacheTableRow, String> tagCol = new TableColumn<>("Tag");
-    tagCol.setCellValueFactory(new PropertyValueFactory<>("tag"));
-    tagCol.setPrefWidth(100);
+        TableColumn<CacheTableRow, String> tagCol = new TableColumn<>("Tag");
+        tagCol.setCellValueFactory(new PropertyValueFactory<>("tag"));
+        tagCol.setPrefWidth(100);
 
-    TableColumn<CacheTableRow, String> dataCol = new TableColumn<>("Value (hex)");
-    dataCol.setCellValueFactory(new PropertyValueFactory<>("data"));
-    dataCol.setPrefWidth(300);
+        TableColumn<CacheTableRow, String> dataCol = new TableColumn<>("Value (hex)");
+        dataCol.setCellValueFactory(new PropertyValueFactory<>("data"));
+        dataCol.setPrefWidth(300);
 
-    cacheTable.getColumns().addAll(indexCol, validCol, tagCol, dataCol);
+        cacheTable.getColumns().addAll(indexCol, validCol, tagCol, dataCol);
 
-    TextArea cacheLogArea = new TextArea();
-    cacheLogArea.setEditable(false);
-    cacheLogArea.setPrefRowCount(10);
-    cacheLogArea.setPromptText("Cache access log will appear here...");
+        TextArea cacheLogArea = new TextArea();
+        cacheLogArea.setEditable(false);
+        cacheLogArea.setPrefRowCount(10);
+        cacheLogArea.setPromptText("Cache access log will appear here...");
 
-    box.getChildren().addAll(label, cacheTable, new Label("Cache Access Log:"), cacheLogArea);
+        box.getChildren().addAll(label, cacheTable, new Label("Cache Access Log:"), cacheLogArea);
 
         return box;
     }
@@ -764,7 +764,8 @@ public class TomasuloSimulator extends Application {
         VBox box = new VBox(10);
         box.setPadding(new Insets(10));
 
-        Label info = new Label("Enter address:value pairs (one per line).\nAddress may be decimal or hex (0x...). Example:\n0x100: 3.14\n256: 42");
+        Label info = new Label(
+                "Enter address:value pairs (one per line).\nAddress may be decimal or hex (0x...). Example:\n0x100: 3.14\n256: 42");
         TextArea ta = new TextArea();
         ta.setPrefRowCount(10);
         // Provide a small sample
@@ -781,14 +782,19 @@ public class TomasuloSimulator extends Application {
             int applied = 0;
             for (int i = 0; i < lines.length; i++) {
                 String line = lines[i].trim();
-                if (line.isEmpty()) continue;
+                if (line.isEmpty())
+                    continue;
                 try {
                     String[] parts;
-                    if (line.contains(":")) parts = line.split(":", 2);
-                    else if (line.contains("=")) parts = line.split("=", 2);
-                    else parts = line.split("\\s+", 2);
+                    if (line.contains(":"))
+                        parts = line.split(":", 2);
+                    else if (line.contains("="))
+                        parts = line.split("=", 2);
+                    else
+                        parts = line.split("\\s+", 2);
 
-                    if (parts.length < 2) throw new IllegalArgumentException("Bad format");
+                    if (parts.length < 2)
+                        throw new IllegalArgumentException("Bad format");
                     String a = parts[0].trim();
                     String v = parts[1].trim();
                     int addr;
@@ -1046,9 +1052,20 @@ public class TomasuloSimulator extends Application {
             this.data = data;
         }
 
-        public String getIndex() { return index; }
-        public String getValid() { return valid; }
-        public String getTag() { return tag; }
-        public String getData() { return data; }
+        public String getIndex() {
+            return index;
+        }
+
+        public String getValid() {
+            return valid;
+        }
+
+        public String getTag() {
+            return tag;
+        }
+
+        public String getData() {
+            return data;
+        }
     }
 }
