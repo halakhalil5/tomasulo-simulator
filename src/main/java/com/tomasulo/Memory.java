@@ -11,9 +11,11 @@ import java.util.Map;
 public class Memory {
     private static final int MEMORY_SIZE = 1024; // 1024 addresses (each holds a double)
     private double[] memory;
+    
 
     public Memory() {
         memory = new double[MEMORY_SIZE];
+         memory[32] = 1.0;
     }
 
     public double load(int address) {

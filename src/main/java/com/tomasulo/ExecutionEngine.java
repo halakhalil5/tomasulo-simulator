@@ -135,7 +135,7 @@ public class ExecutionEngine {
         cycleLog.add("=== Cycle " + currentCycle + " ===");
 
         // 1. Write Result (CDB)
-        writeResultStage();
+        CommonDataBus.BusEntry winner=writeResultStage();
 
         // 2. Execute
         executeStage();
@@ -143,6 +143,9 @@ public class ExecutionEngine {
         // 3. Issue
         issueStage();
 
+        if(winner!=null){
+            write(winner);
+        }
         // Check if simulation is complete
         return !isComplete();
     }
@@ -624,21 +627,69 @@ public class ExecutionEngine {
         }
     }
 
-    private void writeResultStage() {
+     private CommonDataBus.BusEntry writeResultStage() {
         if (cdb.getPendingWrites().isEmpty()) {
-            return;
+            return null;
         }
 
         // Select winner based on arbitration strategy
         CommonDataBus.BusEntry winner = cdb.selectWinner(config.busArbitrationStrategy);
         if (winner == null)
-            return;
+            return null;
 
-        cycleLog.add("CDB Write: " + winner.tag + " = " + winner.value + " (instruction: " +
-                (winner.instruction != null ? winner.instruction.toString() : "null") + ")");
+        cycleLog.add("CDB Write: " + winner.tag + " = " + winner.value + " (instruction: " + 
+                     (winner.instruction != null ? winner.instruction.toString() : "null") + ")");
 
         // Update reservation stations
-        for (ReservationStation rs : addSubStations) {
+       
+
+        // Update register file FIRST, before clearing any buffers
+        boolean foundRegister = false;
+        for (String reg : registerFile.getRegisterStatus().keySet()) {
+            String regStatus = registerFile.getStatus(reg);
+            if (regStatus != null && !regStatus.isEmpty() && regStatus.equals(winner.tag)) {
+                cycleLog.add("Updating register " + reg + " with value " + winner.value + " (clearing Qi: " + winner.tag + ")");
+                registerFile.setValue(reg, winner.value);
+                registerFile.clearStatus(reg);
+                foundRegister = true;
+            }
+        }
+        if (!foundRegister && winner.instruction != null && !winner.instruction.isBranch() && !winner.instruction.isStore()) {
+            cycleLog.add("WARNING: No register found with Qi=" + winner.tag + " for instruction " + winner.instruction.toString());
+        }
+
+        // Update load/store buffers
+        for (LoadStoreBuffer buf : loadBuffers) {
+            if (buf.getName().equals(winner.tag)) {
+                buf.clear();
+            }
+        }
+
+        
+
+        // If the write corresponds to a branch, apply the branch effect now (jump on
+        // write-back)
+        if (winner.instruction != null && winner.instruction.isBranch()) {
+            Instruction br = winner.instruction;
+            br.setWriteTime(currentCycle);
+            if (br.getBranchTaken()) {
+                int targetPc = labels.getOrDefault(br.getLabel(), 0);
+                instructionQueue.jumpTo(targetPc);
+                cycleLog.add("Branch taken to " + br.getLabel());
+            } else {
+                cycleLog.add("Branch not taken");
+            }
+        }
+
+        // Set write time for the instruction
+        if (winner.instruction != null) {
+            winner.instruction.setWriteTime(currentCycle);
+        }
+        return winner;
+    }
+
+    public void write(CommonDataBus.BusEntry winner){
+         for (ReservationStation rs : addSubStations) {
             rs.updateOperand(winner.tag, winner.value);
             if (rs.getName().equals(winner.tag)) {
                 rs.clear();
@@ -665,32 +716,6 @@ public class ExecutionEngine {
                 rs.clear();
             }
         }
-
-        // Update register file FIRST, before clearing any buffers
-        boolean foundRegister = false;
-        for (String reg : registerFile.getRegisterStatus().keySet()) {
-            String regStatus = registerFile.getStatus(reg);
-            if (regStatus != null && !regStatus.isEmpty() && regStatus.equals(winner.tag)) {
-                cycleLog.add("Updating register " + reg + " with value " + winner.value + " (clearing Qi: " + winner.tag
-                        + ")");
-                registerFile.setValue(reg, winner.value);
-                registerFile.clearStatus(reg);
-                foundRegister = true;
-            }
-        }
-        if (!foundRegister && winner.instruction != null && !winner.instruction.isBranch()
-                && !winner.instruction.isStore()) {
-            cycleLog.add("WARNING: No register found with Qi=" + winner.tag + " for instruction "
-                    + winner.instruction.toString());
-        }
-
-        // Update load/store buffers
-        for (LoadStoreBuffer buf : loadBuffers) {
-            if (buf.getName().equals(winner.tag)) {
-                buf.clear();
-            }
-        }
-
         for (LoadStoreBuffer buf : storeBuffers) {
             // If this write corresponds to a store buffer producing its value,
             // update the buffer's value/Q as usual.
@@ -705,27 +730,7 @@ public class ExecutionEngine {
                 cycleLog.add("Store completed to address " + buf.getAddress());
             }
         }
-
-        // If the write corresponds to a branch, apply the branch effect now (jump on
-        // write-back)
-        if (winner.instruction != null && winner.instruction.isBranch()) {
-            Instruction br = winner.instruction;
-            br.setWriteTime(currentCycle);
-            if (br.getBranchTaken()) {
-                int targetPc = labels.getOrDefault(br.getLabel(), 0);
-                instructionQueue.jumpTo(targetPc);
-                cycleLog.add("Branch taken to " + br.getLabel());
-            } else {
-                cycleLog.add("Branch not taken");
-            }
-        }
-
-        // Set write time for the instruction
-        if (winner.instruction != null) {
-            winner.instruction.setWriteTime(currentCycle);
-        }
     }
-
     private boolean isComplete() {
         // Simulation is complete when:
         // 1. All instructions have been issued (no more in queue to fetch)
