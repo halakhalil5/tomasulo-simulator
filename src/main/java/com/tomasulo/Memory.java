@@ -25,7 +25,7 @@ public class Memory {
         if (address < 0 || address + 7 >= MEMORY_SIZE) {
             return 0.0;
         }
-        
+
         // Load 8 bytes for double precision (L.D instruction)
         // Combine bytes: addr is MSB, addr+7 is LSB
         // Result is treated as integer value, stored in double for compatibility
@@ -33,7 +33,7 @@ public class Memory {
         for (int i = 0; i < 8; i++) {
             combined = (combined << 8) | (memory[address + i] & 0xFF);
         }
-        
+
         // Return as double but represents integer value
         return (double) combined;
     }
@@ -47,7 +47,7 @@ public class Memory {
         if (address < 0 || address + 7 >= MEMORY_SIZE) {
             return;
         }
-        
+
         // Convert double (treated as integer) to 8 bytes
         long intValue = (long) value;
         for (int i = 7; i >= 0; i--) {
@@ -115,7 +115,7 @@ public class Memory {
         memory[4] = (byte) 0x00;
         memory[5] = (byte) 0x00;
         memory[6] = (byte) 0x00;
-        memory[7] = (byte) 0x0A;  // = 10
+        memory[7] = (byte) 0x0A; // = 10
         memory[8] = (byte) 0x00;
         memory[9] = (byte) 0x00;
         memory[10] = (byte) 0x00;
@@ -123,6 +123,6 @@ public class Memory {
         memory[12] = (byte) 0x00;
         memory[13] = (byte) 0x00;
         memory[14] = (byte) 0x00;
-        memory[15] = (byte) 0x14;  // = 20
+        memory[15] = (byte) 0x14; // = 20
     }
 }
