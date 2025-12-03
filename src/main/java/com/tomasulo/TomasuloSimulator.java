@@ -492,8 +492,26 @@ public class TomasuloSimulator extends Application {
                 return;
             }
 
+            // Save current register values before creating new engine
+            Map<String, Double> savedIntRegs = null;
+            Map<String, Double> savedFloatRegs = null;
+            if (engine != null && engine.getRegisterFile() != null) {
+                savedIntRegs = engine.getRegisterFile().getIntegerRegisters();
+                savedFloatRegs = engine.getRegisterFile().getFloatRegisters();
+            }
+
             engine = new ExecutionEngine(config);
             engine.loadProgram(instructions);
+
+            // Restore register values after creating new engine
+            if (savedIntRegs != null && savedFloatRegs != null) {
+                for (Map.Entry<String, Double> entry : savedIntRegs.entrySet()) {
+                    engine.getRegisterFile().setValue(entry.getKey(), entry.getValue());
+                }
+                for (Map.Entry<String, Double> entry : savedFloatRegs.entrySet()) {
+                    engine.getRegisterFile().setValue(entry.getKey(), entry.getValue());
+                }
+            }
 
             updateAllViews();
 

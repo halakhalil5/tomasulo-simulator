@@ -97,6 +97,10 @@ public class ExecutionEngine {
     }
 
     public void reset() {
+        reset(false);
+    }
+
+    public void reset(boolean preserveRegisters) {
         currentCycle = 0;
         issueOrder = 0;
         cycleLog.clear();
@@ -112,7 +116,12 @@ public class ExecutionEngine {
         for (LoadStoreBuffer buf : storeBuffers)
             buf.clear();
 
-        registerFile.reset();
+        if (!preserveRegisters) {
+            registerFile.reset();
+        } else {
+            // Only clear register status, keep values
+            registerFile.clearAllStatus();
+        }
         instructionQueue.reset();
         cdb.clearPendingWrites();
         cache.reset();
