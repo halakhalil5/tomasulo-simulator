@@ -50,6 +50,7 @@ public class Memory {
         memory.put(8,90.0);
         memory.put(16,100.0);
         memory.put(24,800.0);
+        memory.put(20,400.0);
         memory.put(104, -42.0);
         memory.put(200, 3.14159);
     }

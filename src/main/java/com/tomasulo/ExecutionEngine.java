@@ -339,7 +339,9 @@ public class ExecutionEngine {
             latency = config.subLatency;
         }
 
-        rs.setInstruction(inst, inst.getType().name(), vj, vk, qj, qk, latency);
+        // Convert operation name: ADD_D -> ADD.D
+        String opName = inst.getType().name().replace("_", ".");
+        rs.setInstruction(inst, opName, vj, vk, qj, qk, latency);
         registerFile.setStatus(inst.getDest(), rs.getName());
 
         return true;
@@ -370,7 +372,9 @@ public class ExecutionEngine {
             latency = config.divLatency;
         }
 
-        rs.setInstruction(inst, inst.getType().name(), vj, vk, qj, qk, latency);
+        // Convert operation name: MUL_D -> MUL.D
+        String opName = inst.getType().name().replace("_", ".");
+        rs.setInstruction(inst, opName, vj, vk, qj, qk, latency);
         registerFile.setStatus(inst.getDest(), rs.getName());
 
         return true;
