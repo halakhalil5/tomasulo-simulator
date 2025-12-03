@@ -211,10 +211,10 @@ public class TomasuloSimulator extends Application {
 
         cycleLabel = new Label("Cycle: 1");
         cycleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-        
+
         pcLabel = new Label("PC: 0");
         pcLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-        
+
         currentInstructionLabel = new Label("Next: ");
         currentInstructionLabel.setStyle("-fx-font-size: 14px;");
 
@@ -481,7 +481,7 @@ public class TomasuloSimulator extends Application {
         addressCol.setCellValueFactory(new PropertyValueFactory<>("address"));
         addressCol.setPrefWidth(100);
 
-        TableColumn<CacheTableRow, String> dataCol = new TableColumn<>("Value");
+        TableColumn<CacheTableRow, String> dataCol = new TableColumn<>("Block Data");
         dataCol.setCellValueFactory(new PropertyValueFactory<>("data"));
         dataCol.setPrefWidth(100);
 
@@ -625,11 +625,11 @@ public class TomasuloSimulator extends Application {
         updateCacheTable();
         updatePcAndCurrentInstruction();
     }
-    
+
     private void updatePcAndCurrentInstruction() {
         int pc = engine.getInstructionQueue().getPc();
         pcLabel.setText(String.format("PC: 0x%X (%d)", pc, pc));
-        
+
         Instruction currentInst = engine.getInstructionQueue().peek();
         if (currentInst != null) {
             currentInstructionLabel.setText("Next: " + currentInst.toString());
@@ -963,7 +963,7 @@ public class TomasuloSimulator extends Application {
         public LSBufferTableRow(LoadStoreBuffer buf) {
             this.name = buf.getName();
             this.busy = buf.isBusy() ? "Yes" : "No";
-            this.address = buf.isBusy() ? String.format("0x%X", buf.getAddress()) : "";
+            this.address = buf.isBusy() ? String.valueOf(buf.getAddress()) : "";
             this.value = buf.isBusy() && !buf.isLoad() ? String.format("%.2f", buf.getValue()) : "";
             this.q = buf.getQ() != null ? buf.getQ() : "";
             this.remaining = buf.isBusy() ? String.valueOf(buf.getRemainingCycles()) : "";

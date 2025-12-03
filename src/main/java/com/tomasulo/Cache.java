@@ -29,14 +29,14 @@ public class Cache {
         boolean valid;
         int tag;
         byte[] data;
-        double value; // Store the actual value loaded from memory
+        double[] blockValues; // Store the entire block as array of values
         int blockStartAddress; // Starting address of this cached block
 
         CacheBlock(int blockSize) {
             this.valid = false;
             this.tag = -1;
             this.data = new byte[blockSize];
-            this.value = 0.0;
+            this.blockValues = new double[blockSize];
             this.blockStartAddress = -1;
         }
     }
@@ -91,11 +91,14 @@ public class Cache {
             block.tag = tag;
             block.blockStartAddress = blockStartAddr;
 
-            // Load the requested address value
+            // Load entire block (all addresses in this block)
             if (memory != null) {
-                block.value = memory.load(address);
+                for (int i = 0; i < blockSize; i++) {
+                    block.blockValues[i] = memory.load(blockStartAddr + i);
+                }
             } else {
-                block.value = memoryValue;
+                // Fallback if memory not available
+                block.blockValues[blockOffset] = memoryValue;
             }
 
             return hitLatency + missPenalty;
@@ -117,7 +120,7 @@ public class Cache {
             // Cache hit - update value
             accessLog.add(String.format("Cycle: Store HIT - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d)",
                     address, tag, index, blockOffset));
-            block.value = memoryValue;
+            block.blockValues[blockOffset] = memoryValue;
             return hitLatency;
         } else {
             // Cache miss - load entire block from memory first
@@ -131,7 +134,15 @@ public class Cache {
             block.valid = true;
             block.tag = tag;
             block.blockStartAddress = blockStartAddr;
-            block.value = memoryValue;
+
+            // Load entire block
+            if (memory != null) {
+                for (int i = 0; i < blockSize; i++) {
+                    block.blockValues[i] = memory.load(blockStartAddr + i);
+                }
+            }
+            // Update the specific address with new value
+            block.blockValues[blockOffset] = memoryValue;
 
             return hitLatency + missPenalty;
         }
@@ -193,14 +204,14 @@ public class Cache {
         public final boolean valid;
         public final int tag;
         public final byte[] data;
-        public final double value; // Store the actual double value
+        public final double[] blockValues; // Store the entire block as array
         public final int blockStartAddress; // Block start address
 
-        public CacheBlockInfo(boolean valid, int tag, byte[] data, double value, int blockStartAddress) {
+        public CacheBlockInfo(boolean valid, int tag, byte[] data, double[] blockValues, int blockStartAddress) {
             this.valid = valid;
             this.tag = tag;
             this.data = data != null ? data.clone() : new byte[0];
-            this.value = value;
+            this.blockValues = blockValues != null ? blockValues.clone() : new double[0];
             this.blockStartAddress = blockStartAddress;
         }
 
@@ -215,10 +226,18 @@ public class Cache {
         }
 
         public String getDataValue() {
-            if (!valid)
+            if (!valid || blockValues == null || blockValues.length == 0)
                 return "";
-            // Format as decimal with up to 4 decimal places, removing trailing zeros
-            return String.format("%.4f", value).replaceAll("\\.?0+$", "");
+            // Format as array: [val1, val2, val3, ...]
+            StringBuilder sb = new StringBuilder("[");
+            for (int i = 0; i < blockValues.length; i++) {
+                if (i > 0)
+                    sb.append(", ");
+                String formatted = String.format("%.2f", blockValues[i]).replaceAll("\\.?0+$", "");
+                sb.append(formatted);
+            }
+            sb.append("]");
+            return sb.toString();
         }
 
         public String getBlockAddress() {
@@ -237,9 +256,10 @@ public class Cache {
             CacheBlock block = cache.get(i);
             if (block != null) {
                 snap.put(i,
-                        new CacheBlockInfo(block.valid, block.tag, block.data, block.value, block.blockStartAddress));
+                        new CacheBlockInfo(block.valid, block.tag, block.data, block.blockValues,
+                                block.blockStartAddress));
             } else {
-                snap.put(i, new CacheBlockInfo(false, -1, new byte[0], 0.0, -1));
+                snap.put(i, new CacheBlockInfo(false, -1, new byte[0], new double[0], -1));
             }
         }
         return snap;

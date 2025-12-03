@@ -131,6 +131,7 @@ public class ExecutionEngine {
     }
 
     public boolean executeCycle() {
+        currentCycle++;
         cycleLog.add("=== Cycle " + currentCycle + " ===");
 
         // 1. Write Result (CDB)
@@ -141,8 +142,6 @@ public class ExecutionEngine {
 
         // 3. Issue
         issueStage();
-
-        currentCycle++;
 
         // Check if simulation is complete
         return !isComplete();
