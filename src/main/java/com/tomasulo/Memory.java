@@ -18,19 +18,32 @@ public class Memory {
 
     /**
      * Load 8 bytes starting from address and combine into a double
-     * Bytes are combined in big-endian order: byte[addr] is MSB
-     * The combined value is treated as an integer (no floating-point conversion)
+     * Used by: L.D (Load Double), LD (Load Doubleword)
      */
     public double load(int address) {
-        if (address < 0 || address + 7 >= MEMORY_SIZE) {
+        return load(address, 8);
+    }
+
+    /**
+     * Load 4 bytes starting from address and combine into a double
+     * Used by: LW (Load Word), L.S (Load Single)
+     */
+    public double loadWord(int address) {
+        return load(address, 4);
+    }
+
+    /**
+     * Load specified number of bytes (4 or 8) from address
+     * Bytes are combined in big-endian order: byte[addr] is MSB
+     */
+    private double load(int address, int numBytes) {
+        if (address < 0 || address + numBytes - 1 >= MEMORY_SIZE) {
             return 0.0;
         }
 
-        // Load 8 bytes for double precision (L.D instruction)
-        // Combine bytes: addr is MSB, addr+7 is LSB
-        // Result is treated as integer value, stored in double for compatibility
+        // Combine bytes: addr is MSB, addr+(numBytes-1) is LSB
         long combined = 0;
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < numBytes; i++) {
             combined = (combined << 8) | (memory[address + i] & 0xFF);
         }
 
@@ -40,25 +53,42 @@ public class Memory {
 
     /**
      * Store a double value by splitting it into 8 bytes
-     * Value is treated as integer, not floating-point
-     * Bytes stored in big-endian order: MSB at addr, LSB at addr+7
+     * Used by: S.D (Store Double), SD (Store Doubleword)
      */
     public void store(int address, double value) {
-        if (address < 0 || address + 7 >= MEMORY_SIZE) {
+        store(address, value, 8);
+    }
+
+    /**
+     * Store a value by splitting it into 4 bytes
+     * Used by: SW (Store Word), S.S (Store Single)
+     */
+    public void storeWord(int address, double value) {
+        store(address, value, 4);
+    }
+
+    /**
+     * Store a value by splitting it into specified number of bytes (4 or 8)
+     * Bytes stored in big-endian order: MSB at addr
+     */
+    private void store(int address, double value, int numBytes) {
+        if (address < 0 || address + numBytes - 1 >= MEMORY_SIZE) {
             return;
         }
 
-        // Convert double (treated as integer) to 8 bytes
+        // Convert double (treated as integer) to bytes
         long intValue = (long) value;
-        System.out.printf("STORE: Address=%d, Value=%.0f (0x%016X), Bytes: ", address, value, intValue);
+        System.out.printf("STORE: Address=%d, Value=%.0f (0x%016X), Bytes[%d]: ", 
+                         address, value, intValue, numBytes);
 
-        // Store in big-endian order: MSB at address, LSB at address+7
-        for (int i = 0; i < 8; i++) {
-            memory[address + i] = (byte) ((intValue >> (56 - i * 8)) & 0xFF);
+        // Store in big-endian order: MSB at address
+        int shiftStart = (numBytes - 1) * 8;
+        for (int i = 0; i < numBytes; i++) {
+            memory[address + i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
         }
 
         // Print bytes in order
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < numBytes; i++) {
             System.out.printf("0x%02X ", memory[address + i] & 0xFF);
         }
         System.out.println();
@@ -115,7 +145,7 @@ public class Memory {
      * Using smaller values for easier verification
      */
     public void preloadWithTestData() {
-        // Initialize memory with small hex byte values
+        // Address 0-7: value 10
         memory[0] = (byte) 0x00;
         memory[1] = (byte) 0x00;
         memory[2] = (byte) 0x00;
@@ -124,6 +154,8 @@ public class Memory {
         memory[5] = (byte) 0x00;
         memory[6] = (byte) 0x00;
         memory[7] = (byte) 0x0A; // = 10
+
+        // Address 8-15: value 20
         memory[8] = (byte) 0x00;
         memory[9] = (byte) 0x00;
         memory[10] = (byte) 0x00;
@@ -132,6 +164,26 @@ public class Memory {
         memory[13] = (byte) 0x00;
         memory[14] = (byte) 0x00;
         memory[15] = (byte) 0x14; // = 20
+
+        // Address 16-23: value 30
+        memory[16] = (byte) 0x00;
+        memory[17] = (byte) 0x00;
+        memory[18] = (byte) 0x00;
+        memory[19] = (byte) 0x00;
+        memory[20] = (byte) 0x00;
+        memory[21] = (byte) 0x00;
+        memory[22] = (byte) 0x00;
+        memory[23] = (byte) 0x1E; // = 30
+
+        // Address 24-31: value 40
+        memory[24] = (byte) 0x00;
+        memory[25] = (byte) 0x00;
+        memory[26] = (byte) 0x00;
+        memory[27] = (byte) 0x00;
+        memory[28] = (byte) 0x00;
+        memory[29] = (byte) 0x00;
+        memory[30] = (byte) 0x00;
+        memory[31] = (byte) 0x28; // = 40
     }
 
     /**

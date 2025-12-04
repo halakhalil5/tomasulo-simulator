@@ -554,7 +554,11 @@ public class ExecutionEngine {
                 }
                 // Access cache at the start of execution (first cycle only)
                 if (!buf.isCacheAccessed()) {
-                    double memoryValue = memory.load(buf.getAddress());
+                    // Use appropriate load method based on instruction type
+                    Instruction inst = buf.getInstruction();
+                    boolean isWord = (inst.getType() == Instruction.InstructionType.LW || 
+                                     inst.getType() == Instruction.InstructionType.L_S);
+                    double memoryValue = isWord ? memory.loadWord(buf.getAddress()) : memory.load(buf.getAddress());
                     int cacheLatency = cache.accessLoad(buf.getAddress(), memoryValue);
                     buf.addCacheLatency(cacheLatency);
                     buf.setCacheAccessed(true);
@@ -566,7 +570,11 @@ public class ExecutionEngine {
                 }
                 buf.decrementCycles();
                 if (buf.isComplete()) {
-                    double value = memory.load(buf.getAddress());
+                    // Use appropriate load method based on instruction type
+                    Instruction inst = buf.getInstruction();
+                    boolean isWord = (inst.getType() == Instruction.InstructionType.LW || 
+                                     inst.getType() == Instruction.InstructionType.L_S);
+                    double value = isWord ? memory.loadWord(buf.getAddress()) : memory.load(buf.getAddress());
                     buf.getInstruction().setExecEndTime(currentCycle);
                     cdb.requestWrite(buf.getName(), value, buf.getInstruction(), issueOrder++);
                 }
@@ -726,7 +734,15 @@ public class ExecutionEngine {
             // store
             // and clear the buffer now (this makes stores commit in the write stage).
             if (buf.getName().equals(winner.tag)) {
-                memory.store(buf.getAddress(), buf.getValue());
+                // Use appropriate store method based on instruction type
+                Instruction inst = buf.getInstruction();
+                boolean isWord = (inst.getType() == Instruction.InstructionType.SW || 
+                                 inst.getType() == Instruction.InstructionType.S_S);
+                if (isWord) {
+                    memory.storeWord(buf.getAddress(), buf.getValue());
+                } else {
+                    memory.store(buf.getAddress(), buf.getValue());
+                }
                 buf.getInstruction().setWriteTime(currentCycle);
                 buf.clear();
                 cycleLog.add("Store completed to address " + buf.getAddress());
