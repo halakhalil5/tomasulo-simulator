@@ -192,13 +192,14 @@ public class Memory {
      */
     public void printMemory() {
         System.out.println("\n=== Final Memory State ===");
-        
+
         // Track which addresses have been processed
         boolean[] processed = new boolean[MEMORY_SIZE];
-        
+
         for (int i = 0; i < MEMORY_SIZE; i++) {
-            if (processed[i] || memory[i] == 0) continue;
-            
+            if (processed[i] || memory[i] == 0)
+                continue;
+
             // Check if this starts an 8-byte value (all 8 bytes have some data pattern)
             boolean is8ByteValue = false;
             if (i % 8 == 0 && i + 7 < MEMORY_SIZE) {
@@ -210,7 +211,7 @@ public class Memory {
                     }
                 }
             }
-            
+
             // Check if this starts a 4-byte value
             boolean is4ByteValue = false;
             if (!is8ByteValue && i % 4 == 0 && i + 3 < MEMORY_SIZE) {
@@ -222,13 +223,14 @@ public class Memory {
                     }
                 }
             }
-            
+
             if (is8ByteValue) {
                 // Print 8-byte value
                 System.out.printf("Address %3d-%3d: [", i, i + 7);
                 for (int j = 0; j < 8; j++) {
                     System.out.printf("0x%02X", memory[i + j] & 0xFF);
-                    if (j < 7) System.out.print(", ");
+                    if (j < 7)
+                        System.out.print(", ");
                     processed[i + j] = true;
                 }
                 System.out.printf("] = %.0f (8-byte value)\n", load(i, 8));
@@ -238,7 +240,8 @@ public class Memory {
                 System.out.printf("Address %3d-%3d: [", i, i + 3);
                 for (int j = 0; j < 4; j++) {
                     System.out.printf("0x%02X", memory[i + j] & 0xFF);
-                    if (j < 3) System.out.print(", ");
+                    if (j < 3)
+                        System.out.print(", ");
                     processed[i + j] = true;
                 }
                 System.out.printf("] = %.0f (4-byte value)\n", load(i, 4));

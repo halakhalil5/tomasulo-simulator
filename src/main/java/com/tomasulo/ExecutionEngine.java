@@ -136,8 +136,9 @@ public class ExecutionEngine {
         // 1. Write Result (CDB) - select winner and broadcast
         CommonDataBus.BusEntry winner = writeResultStage();
 
-        // 2. Commit write - update registers and clear buffers BEFORE issuing new instructions
-        //    This prevents buffer reuse in the same cycle
+        // 2. Commit write - update registers and clear buffers BEFORE issuing new
+        // instructions
+        // This prevents buffer reuse in the same cycle
         if (winner != null) {
             write(winner);
         }
@@ -735,7 +736,7 @@ public class ExecutionEngine {
             if (buf.getName().equals(winner.tag)) {
                 // Use appropriate store method based on instruction type
                 Instruction inst = buf.getInstruction();
-                int address = buf.getAddress();  // Save address before clearing
+                int address = buf.getAddress(); // Save address before clearing
                 boolean isWord = (inst.getType() == Instruction.InstructionType.SW ||
                         inst.getType() == Instruction.InstructionType.S_S);
                 if (isWord) {
