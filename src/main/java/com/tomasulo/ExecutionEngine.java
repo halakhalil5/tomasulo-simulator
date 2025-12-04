@@ -22,13 +22,13 @@ public class ExecutionEngine {
     private int issueOrder;
     private Map<String, Integer> labels;
     private List<String> cycleLog;
-    private int branchBusyUntil; // Cycle until which all issuing is stalled due to branch
+    private boolean branchInFlight; // True if a branch has been issued but not yet written back
 
     public ExecutionEngine(Config config) {
         this.config = config;
         this.currentCycle = 0;
         this.issueOrder = 0;
-        this.branchBusyUntil = -1; // No branch stall initially
+        this.branchInFlight = false; // No branch in flight initially
         this.labels = new HashMap<>();
         this.cycleLog = new ArrayList<>();
         // branchStations list initialized in initializeComponents
@@ -144,7 +144,7 @@ public class ExecutionEngine {
         // 4. Issue
         issueStage();
 
-        
+
         if (winner != null) {
             write(winner);
         }
@@ -175,9 +175,9 @@ public class ExecutionEngine {
         boolean isBranch = (inst.getType() == Instruction.InstructionType.BEQ ||
                 inst.getType() == Instruction.InstructionType.BNE);
 
-        // If there's an active branch stall and this is NOT a branch, stall all issuing
-        if (!isBranch && currentCycle <= branchBusyUntil) {
-            cycleLog.add("Stalled issuing due to branch in execution");
+        // If there's a branch in flight and this is NOT a branch, stall all issuing
+        if (!isBranch && branchInFlight) {
+            cycleLog.add("Stalled issuing due to branch in flight (waiting for write-back)");
             return;
         }
         // issuance handled per-case below
@@ -499,9 +499,9 @@ public class ExecutionEngine {
 
         inst.setIssueTime(currentCycle);
 
-        // Stall all subsequent issuing until this branch completes execution
-        this.branchBusyUntil = currentCycle + config.branchLatency;
-        cycleLog.add("Branch issued - stalling all issuing until cycle " + branchBusyUntil);
+        // Stall all subsequent issuing until this branch writes back
+        this.branchInFlight = true;
+        cycleLog.add("Branch issued - stalling all issuing until branch writes back");
 
         return true;
     }
@@ -689,6 +689,10 @@ public class ExecutionEngine {
             } else {
                 cycleLog.add("Branch NOT taken - continuing sequential execution");
             }
+            
+            // Clear branch stall - issuing can resume after this write-back
+            this.branchInFlight = false;
+            cycleLog.add("Branch write-back complete - resuming issuing");
         }
 
         // Set write time for the instruction
