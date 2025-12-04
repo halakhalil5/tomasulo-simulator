@@ -22,7 +22,7 @@ public class Config {
 
     // Cache configuration
     public int cacheSize = 256; // in bytes
-    public int blockSize = 16; // in bytes
+    public int blockSize = 4; // in bytes
     public int cacheHitLatency = 1;
     public int cacheMissPenalty = 3;
 
@@ -41,6 +41,35 @@ public class Config {
     public int busArbitrationStrategy = 1;
 
     public Config() {
+    }
+
+    /**
+     * Get the size of each register in bytes (equals cache block size)
+     * This ensures each cache block stores exactly one register value
+     */
+    public int getRegisterSizeInBytes() {
+        return blockSize;
+    }
+
+    /**
+     * Get total integer register file size in bytes
+     */
+    public int getIntegerRegisterFileSizeInBytes() {
+        return numIntegerRegisters * blockSize;
+    }
+
+    /**
+     * Get total float register file size in bytes
+     */
+    public int getFloatRegisterFileSizeInBytes() {
+        return numFloatRegisters * blockSize;
+    }
+
+    /**
+     * Get total register file size in bytes (integer + float)
+     */
+    public int getTotalRegisterFileSizeInBytes() {
+        return getIntegerRegisterFileSizeInBytes() + getFloatRegisterFileSizeInBytes();
     }
 
     public Config copy() {

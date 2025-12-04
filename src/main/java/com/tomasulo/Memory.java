@@ -141,49 +141,39 @@ public class Memory {
     }
 
     /**
-     * Preload memory with test data as individual bytes in hex
-     * Using smaller values for easier verification
+     * Preload memory with test data based on block size
+     * Each block is preloaded with sequential values (10, 20, 30, 40, ...)
+     * This aligns memory values with cache block boundaries
+     */
+    public void preloadWithTestData(int blockSize) {
+        // Calculate how many blocks we can fill with test data
+        int numTestBlocks = Math.min(64, MEMORY_SIZE / blockSize); // Up to 64 test values
+        
+        System.out.printf("Preloading memory: blockSize=%d bytes, %d test blocks\n", 
+                         blockSize, numTestBlocks);
+        
+        // Fill each block with a sequential value (10, 20, 30, 40, ...)
+        for (int blockNum = 0; blockNum < numTestBlocks; blockNum++) {
+            int address = blockNum * blockSize;
+            int value = (blockNum + 1) * 10; // Values: 10, 20, 30, 40, ...
+            
+            // Store value using the block size as the data size
+            store(address, value, blockSize);
+            
+            if (blockNum < 8) { // Print first few for verification
+                System.out.printf("  Block %d (addr %d-%d): value %d\n", 
+                                 blockNum, address, address + blockSize - 1, value);
+            }
+        }
+        System.out.println("Memory preload complete.\n");
+    }
+    
+    /**
+     * Old preload method for backwards compatibility
+     * Uses 8-byte blocks by default
      */
     public void preloadWithTestData() {
-        // Address 0-7: value 10
-        memory[0] = (byte) 0x00;
-        memory[1] = (byte) 0x00;
-        memory[2] = (byte) 0x00;
-        memory[3] = (byte) 0x00;
-        memory[4] = (byte) 0x00;
-        memory[5] = (byte) 0x00;
-        memory[6] = (byte) 0x00;
-        memory[7] = (byte) 0x0A; // = 10
-
-        // Address 8-15: value 20
-        memory[8] = (byte) 0x00;
-        memory[9] = (byte) 0x00;
-        memory[10] = (byte) 0x00;
-        memory[11] = (byte) 0x00;
-        memory[12] = (byte) 0x00;
-        memory[13] = (byte) 0x00;
-        memory[14] = (byte) 0x00;
-        memory[15] = (byte) 0x14; // = 20
-
-        // Address 16-23: value 30
-        memory[16] = (byte) 0x00;
-        memory[17] = (byte) 0x00;
-        memory[18] = (byte) 0x00;
-        memory[19] = (byte) 0x00;
-        memory[20] = (byte) 0x00;
-        memory[21] = (byte) 0x00;
-        memory[22] = (byte) 0x00;
-        memory[23] = (byte) 0x1E; // = 30
-
-        // Address 24-31: value 40
-        memory[24] = (byte) 0x00;
-        memory[25] = (byte) 0x00;
-        memory[26] = (byte) 0x00;
-        memory[27] = (byte) 0x00;
-        memory[28] = (byte) 0x00;
-        memory[29] = (byte) 0x00;
-        memory[30] = (byte) 0x00;
-        memory[31] = (byte) 0x28; // = 40
+        preloadWithTestData(8);
     }
 
     /**

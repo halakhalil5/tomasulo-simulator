@@ -76,8 +76,9 @@ public class ExecutionEngine {
         cdb = new CommonDataBus();
         cache = new Cache(config.cacheSize, config.blockSize, config.cacheHitLatency, config.cacheMissPenalty);
         memory = new Memory();
-        // Preload memory with hard-coded test data for cache/memory testing
-        memory.preloadWithTestData();
+        // Preload memory with test data aligned to cache block size
+        // Each block gets a sequential value (10, 20, 30, ...)
+        memory.preloadWithTestData(config.blockSize);
         // Set memory reference in cache so it can load blocks
         cache.setMemory(memory);
     }
