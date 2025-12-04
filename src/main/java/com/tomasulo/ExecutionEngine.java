@@ -136,18 +136,18 @@ public class ExecutionEngine {
         // 1. Write Result (CDB) - select winner and broadcast
         CommonDataBus.BusEntry winner = writeResultStage();
 
-        // 2. Commit write - update registers and clear buffers BEFORE issuing new
-        // instructions
-        // This prevents buffer reuse in the same cycle
-        if (winner != null) {
-            write(winner);
-        }
+   
 
         // 3. Execute
         executeStage();
 
         // 4. Issue
         issueStage();
+
+        
+        if (winner != null) {
+            write(winner);
+        }
 
         // Check if simulation is complete
         return !isComplete();
