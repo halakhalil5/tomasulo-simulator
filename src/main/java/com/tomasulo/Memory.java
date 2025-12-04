@@ -78,8 +78,8 @@ public class Memory {
 
         // Convert double (treated as integer) to bytes
         long intValue = (long) value;
-        System.out.printf("STORE: Address=%d, Value=%.0f (0x%016X), Bytes[%d]: ", 
-                         address, value, intValue, numBytes);
+        System.out.printf("STORE: Address=%d, Value=%.0f (0x%016X), Bytes[%d]: ",
+                address, value, intValue, numBytes);
 
         // Store in big-endian order: MSB at address
         int shiftStart = (numBytes - 1) * 8;

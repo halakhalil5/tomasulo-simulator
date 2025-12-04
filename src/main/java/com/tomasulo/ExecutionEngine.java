@@ -134,7 +134,7 @@ public class ExecutionEngine {
         cycleLog.add("=== Cycle " + currentCycle + " ===");
 
         // 1. Write Result (CDB)
-        CommonDataBus.BusEntry winner=writeResultStage();
+        CommonDataBus.BusEntry winner = writeResultStage();
 
         // 2. Execute
         executeStage();
@@ -142,7 +142,7 @@ public class ExecutionEngine {
         // 3. Issue
         issueStage();
 
-        if(winner!=null){
+        if (winner != null) {
             write(winner);
         }
         // Check if simulation is complete
@@ -166,11 +166,11 @@ public class ExecutionEngine {
                 return;
             }
         }
-        
+
         // Check if this is a branch - branches can issue immediately
-        boolean isBranch = (inst.getType() == Instruction.InstructionType.BEQ || 
-                           inst.getType() == Instruction.InstructionType.BNE);
-        
+        boolean isBranch = (inst.getType() == Instruction.InstructionType.BEQ ||
+                inst.getType() == Instruction.InstructionType.BNE);
+
         // If there's an active branch stall and this is NOT a branch, stall all issuing
         if (!isBranch && currentCycle <= branchBusyUntil) {
             cycleLog.add("Stalled issuing due to branch in execution");
@@ -494,7 +494,7 @@ public class ExecutionEngine {
         rs.setInstruction(inst, inst.getType().name(), vj, vk, qj, qk, config.branchLatency);
 
         inst.setIssueTime(currentCycle);
-        
+
         // Stall all subsequent issuing until this branch completes execution
         this.branchBusyUntil = currentCycle + config.branchLatency;
         cycleLog.add("Branch issued - stalling all issuing until cycle " + branchBusyUntil);
@@ -556,8 +556,8 @@ public class ExecutionEngine {
                 if (!buf.isCacheAccessed()) {
                     // Use appropriate load method based on instruction type
                     Instruction inst = buf.getInstruction();
-                    boolean isWord = (inst.getType() == Instruction.InstructionType.LW || 
-                                     inst.getType() == Instruction.InstructionType.L_S);
+                    boolean isWord = (inst.getType() == Instruction.InstructionType.LW ||
+                            inst.getType() == Instruction.InstructionType.L_S);
                     double memoryValue = isWord ? memory.loadWord(buf.getAddress()) : memory.load(buf.getAddress());
                     int cacheLatency = cache.accessLoad(buf.getAddress(), memoryValue);
                     buf.addCacheLatency(cacheLatency);
@@ -572,8 +572,8 @@ public class ExecutionEngine {
                 if (buf.isComplete()) {
                     // Use appropriate load method based on instruction type
                     Instruction inst = buf.getInstruction();
-                    boolean isWord = (inst.getType() == Instruction.InstructionType.LW || 
-                                     inst.getType() == Instruction.InstructionType.L_S);
+                    boolean isWord = (inst.getType() == Instruction.InstructionType.LW ||
+                            inst.getType() == Instruction.InstructionType.L_S);
                     double value = isWord ? memory.loadWord(buf.getAddress()) : memory.load(buf.getAddress());
                     buf.getInstruction().setExecEndTime(currentCycle);
                     cdb.requestWrite(buf.getName(), value, buf.getInstruction(), issueOrder++);
@@ -626,16 +626,16 @@ public class ExecutionEngine {
                     double val2 = rs.getVk();
                     boolean taken = b.getType() == Instruction.InstructionType.BEQ ? (val1 == val2) : (val1 != val2);
                     b.setBranchTaken(taken);
-                    cycleLog.add(String.format("Branch eval: %s comparing %.2f %s %.2f = %s, target: %s", 
-                        b.getType(), val1, (b.getType() == Instruction.InstructionType.BEQ ? "==" : "!="), 
-                        val2, taken, b.getLabel()));
+                    cycleLog.add(String.format("Branch eval: %s comparing %.2f %s %.2f = %s, target: %s",
+                            b.getType(), val1, (b.getType() == Instruction.InstructionType.BEQ ? "==" : "!="),
+                            val2, taken, b.getLabel()));
                     cdb.requestWrite(rs.getName(), 0.0, b, issueOrder++);
                 }
             }
         }
     }
 
-     private CommonDataBus.BusEntry writeResultStage() {
+    private CommonDataBus.BusEntry writeResultStage() {
         if (cdb.getPendingWrites().isEmpty()) {
             return null;
         }
@@ -645,14 +645,12 @@ public class ExecutionEngine {
         if (winner == null)
             return null;
 
-        cycleLog.add("CDB Write: " + winner.tag + " = " + winner.value + " (instruction: " + 
-                     (winner.instruction != null ? winner.instruction.toString() : "null") + ")");
+        cycleLog.add("CDB Write: " + winner.tag + " = " + winner.value + " (instruction: " +
+                (winner.instruction != null ? winner.instruction.toString() : "null") + ")");
 
         // Update reservation stations
-       
 
         // Update register file FIRST, before clearing any buffers
-       
 
         // Update load/store buffers
         for (LoadStoreBuffer buf : loadBuffers) {
@@ -661,8 +659,6 @@ public class ExecutionEngine {
             }
         }
 
-        
-
         // If the write corresponds to a branch, apply the branch effect now (jump on
         // write-back)
         if (winner.instruction != null && winner.instruction.isBranch()) {
@@ -670,10 +666,10 @@ public class ExecutionEngine {
             br.setWriteTime(currentCycle);
             String label = br.getLabel();
             cycleLog.add("Branch write-back: label/target = '" + label + "', taken = " + br.getBranchTaken());
-            
+
             if (br.getBranchTaken()) {
                 int targetPc;
-                
+
                 // Check if the label is actually a numeric PC address
                 try {
                     targetPc = Integer.parseInt(label);
@@ -683,7 +679,7 @@ public class ExecutionEngine {
                     targetPc = labels.getOrDefault(label, 0);
                     cycleLog.add("Branch TAKEN: Jumping to label '" + label + "' resolved to PC " + targetPc);
                 }
-                
+
                 instructionQueue.jumpTo(targetPc);
                 cycleLog.add("PC updated from " + (targetPc - 4) + " to " + instructionQueue.getPc());
             } else {
@@ -698,8 +694,8 @@ public class ExecutionEngine {
         return winner;
     }
 
-    public void write(CommonDataBus.BusEntry winner){
-         for (ReservationStation rs : addSubStations) {
+    public void write(CommonDataBus.BusEntry winner) {
+        for (ReservationStation rs : addSubStations) {
             rs.updateOperand(winner.tag, winner.value);
             if (rs.getName().equals(winner.tag)) {
                 rs.clear();
@@ -736,8 +732,8 @@ public class ExecutionEngine {
             if (buf.getName().equals(winner.tag)) {
                 // Use appropriate store method based on instruction type
                 Instruction inst = buf.getInstruction();
-                boolean isWord = (inst.getType() == Instruction.InstructionType.SW || 
-                                 inst.getType() == Instruction.InstructionType.S_S);
+                boolean isWord = (inst.getType() == Instruction.InstructionType.SW ||
+                        inst.getType() == Instruction.InstructionType.S_S);
                 if (isWord) {
                     memory.storeWord(buf.getAddress(), buf.getValue());
                 } else {
@@ -748,20 +744,24 @@ public class ExecutionEngine {
                 cycleLog.add("Store completed to address " + buf.getAddress());
             }
         }
-         boolean foundRegister = false;
+        boolean foundRegister = false;
         for (String reg : registerFile.getRegisterStatus().keySet()) {
             String regStatus = registerFile.getStatus(reg);
             if (regStatus != null && !regStatus.isEmpty() && regStatus.equals(winner.tag)) {
-                cycleLog.add("Updating register " + reg + " with value " + winner.value + " (clearing Qi: " + winner.tag + ")");
+                cycleLog.add("Updating register " + reg + " with value " + winner.value + " (clearing Qi: " + winner.tag
+                        + ")");
                 registerFile.setValue(reg, winner.value);
                 registerFile.clearStatus(reg);
                 foundRegister = true;
             }
         }
-        if (!foundRegister && winner.instruction != null && !winner.instruction.isBranch() && !winner.instruction.isStore()) {
-            cycleLog.add("WARNING: No register found with Qi=" + winner.tag + " for instruction " + winner.instruction.toString());
+        if (!foundRegister && winner.instruction != null && !winner.instruction.isBranch()
+                && !winner.instruction.isStore()) {
+            cycleLog.add("WARNING: No register found with Qi=" + winner.tag + " for instruction "
+                    + winner.instruction.toString());
         }
     }
+
     private boolean isComplete() {
         // Simulation is complete when:
         // 1. All instructions have been issued (no more in queue to fetch)
