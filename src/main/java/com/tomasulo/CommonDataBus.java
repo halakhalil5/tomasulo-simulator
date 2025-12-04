@@ -46,7 +46,8 @@ public class CommonDataBus {
         // Both are the same - select instruction with smallest issue order
         BusEntry winner = pendingWrites.get(0);
         for (BusEntry entry : pendingWrites) {
-            if (entry.issueOrder < winner.issueOrder) {
+            
+            if (entry.instruction.getIssueTime() < winner.instruction.getIssueTime()) {
                 winner = entry;
             }
         }
