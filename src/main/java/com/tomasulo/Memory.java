@@ -50,10 +50,18 @@ public class Memory {
 
         // Convert double (treated as integer) to 8 bytes
         long intValue = (long) value;
-        for (int i = 7; i >= 0; i--) {
-            memory[address + i] = (byte) (intValue & 0xFF);
-            intValue >>= 8;
+        System.out.printf("STORE: Address=%d, Value=%.0f (0x%016X), Bytes: ", address, value, intValue);
+        
+        // Store in big-endian order: MSB at address, LSB at address+7
+        for (int i = 0; i < 8; i++) {
+            memory[address + i] = (byte) ((intValue >> (56 - i * 8)) & 0xFF);
         }
+        
+        // Print bytes in order
+        for (int i = 0; i < 8; i++) {
+            System.out.printf("0x%02X ", memory[address + i] & 0xFF);
+        }
+        System.out.println();
     }
 
     /**
@@ -124,5 +132,32 @@ public class Memory {
         memory[13] = (byte) 0x00;
         memory[14] = (byte) 0x00;
         memory[15] = (byte) 0x14; // = 20
+    }
+
+    /**
+     * Print memory contents for debugging (shows non-zero 8-byte chunks)
+     */
+    public void printMemory() {
+        System.out.println("\n=== Final Memory State ===");
+        for (int i = 0; i < MEMORY_SIZE; i += 8) {
+            // Check if this 8-byte chunk has any non-zero data
+            boolean hasData = false;
+            for (int j = 0; j < 8 && (i + j) < MEMORY_SIZE; j++) {
+                if (memory[i + j] != 0) {
+                    hasData = true;
+                    break;
+                }
+            }
+            
+            if (hasData) {
+                System.out.printf("Address %3d-%3d: [", i, i + 7);
+                for (int j = 0; j < 8 && (i + j) < MEMORY_SIZE; j++) {
+                    System.out.printf("0x%02X", memory[i + j] & 0xFF);
+                    if (j < 7) System.out.print(", ");
+                }
+                System.out.printf("] = %.0f\n", load(i));
+            }
+        }
+        System.out.println("=========================\n");
     }
 }

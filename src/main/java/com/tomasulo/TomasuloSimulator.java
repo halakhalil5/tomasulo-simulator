@@ -580,6 +580,7 @@ public class TomasuloSimulator extends Application {
             stepButton.setDisable(true);
             runButton.setDisable(true);
             logArea.appendText("\n=== Simulation Complete ===\n");
+            engine.getMemory().printMemory();
         }
     }
 
@@ -601,6 +602,8 @@ public class TomasuloSimulator extends Application {
             logArea.appendText(logLine + "\n");
         }
 
+        engine.getMemory().printMemory();
+        
         stepButton.setDisable(true);
         runButton.setDisable(true);
     }
