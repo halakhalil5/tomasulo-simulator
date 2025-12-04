@@ -162,8 +162,8 @@ public class TomasuloSimulator extends Application {
         MenuItem cacheItem = new MenuItem("Configure Cache...");
         cacheItem.setOnAction(e -> showCacheDialog());
 
-        MenuItem memoryInitItem = new MenuItem("Initialize Memory...");
-        memoryInitItem.setOnAction(e -> showMemoryInitDialog());
+        // MenuItem memoryInitItem = new MenuItem("Initialize Memory...");
+        // memoryInitItem.setOnAction(e -> showMemoryInitDialog());
 
         MenuItem stationItem = new MenuItem("Set Station Sizes...");
         stationItem.setOnAction(e -> showStationDialog());
@@ -172,7 +172,7 @@ public class TomasuloSimulator extends Application {
         registerItem.setOnAction(e -> showRegisterDialog());
 
         configMenu.getItems().addAll(latencyItem, cacheItem, stationItem, registerItem);
-        configMenu.getItems().addAll(new SeparatorMenuItem(), memoryInitItem);
+        // configMenu.getItems().addAll(new SeparatorMenuItem(), memoryInitItem);
 
         // Samples Menu
         Menu samplesMenu = new Menu("Sample Programs");
@@ -611,7 +611,6 @@ public class TomasuloSimulator extends Application {
     private void resetSimulation() {
         engine.reset();
         updateAllViews();
-
         cycleLabel.setText("Cycle: 1");
         logArea.clear();
 
