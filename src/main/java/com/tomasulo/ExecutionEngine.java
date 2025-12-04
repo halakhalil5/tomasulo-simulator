@@ -133,18 +133,21 @@ public class ExecutionEngine {
         currentCycle++;
         cycleLog.add("=== Cycle " + currentCycle + " ===");
 
-        // 1. Write Result (CDB)
+        // 1. Write Result (CDB) - select winner and broadcast
         CommonDataBus.BusEntry winner = writeResultStage();
 
-        // 2. Execute
-        executeStage();
-
-        // 3. Issue
-        issueStage();
-
+        // 2. Commit write - update registers and clear buffers BEFORE issuing new instructions
+        //    This prevents buffer reuse in the same cycle
         if (winner != null) {
             write(winner);
         }
+
+        // 3. Execute
+        executeStage();
+
+        // 4. Issue
+        issueStage();
+
         // Check if simulation is complete
         return !isComplete();
     }
@@ -732,16 +735,17 @@ public class ExecutionEngine {
             if (buf.getName().equals(winner.tag)) {
                 // Use appropriate store method based on instruction type
                 Instruction inst = buf.getInstruction();
+                int address = buf.getAddress();  // Save address before clearing
                 boolean isWord = (inst.getType() == Instruction.InstructionType.SW ||
                         inst.getType() == Instruction.InstructionType.S_S);
                 if (isWord) {
-                    memory.storeWord(buf.getAddress(), buf.getValue());
+                    memory.storeWord(address, buf.getValue());
                 } else {
-                    memory.store(buf.getAddress(), buf.getValue());
+                    memory.store(address, buf.getValue());
                 }
                 buf.getInstruction().setWriteTime(currentCycle);
                 buf.clear();
-                cycleLog.add("Store completed to address " + buf.getAddress());
+                cycleLog.add("Store completed to address " + address);
             }
         }
         boolean foundRegister = false;

@@ -187,28 +187,62 @@ public class Memory {
     }
 
     /**
-     * Print memory contents for debugging (shows non-zero 8-byte chunks)
+     * Print memory contents for debugging
+     * Shows memory in 4-byte and 8-byte aligned chunks where data exists
      */
     public void printMemory() {
         System.out.println("\n=== Final Memory State ===");
-        for (int i = 0; i < MEMORY_SIZE; i += 8) {
-            // Check if this 8-byte chunk has any non-zero data
-            boolean hasData = false;
-            for (int j = 0; j < 8 && (i + j) < MEMORY_SIZE; j++) {
-                if (memory[i + j] != 0) {
-                    hasData = true;
-                    break;
+        
+        // Track which addresses have been processed
+        boolean[] processed = new boolean[MEMORY_SIZE];
+        
+        for (int i = 0; i < MEMORY_SIZE; i++) {
+            if (processed[i] || memory[i] == 0) continue;
+            
+            // Check if this starts an 8-byte value (all 8 bytes have some data pattern)
+            boolean is8ByteValue = false;
+            if (i % 8 == 0 && i + 7 < MEMORY_SIZE) {
+                // Check if at least one byte in next 8 is non-zero
+                for (int j = 0; j < 8; j++) {
+                    if (memory[i + j] != 0) {
+                        is8ByteValue = true;
+                        break;
+                    }
                 }
             }
-
-            if (hasData) {
-                System.out.printf("Address %3d-%3d: [", i, i + 7);
-                for (int j = 0; j < 8 && (i + j) < MEMORY_SIZE; j++) {
-                    System.out.printf("0x%02X", memory[i + j] & 0xFF);
-                    if (j < 7)
-                        System.out.print(", ");
+            
+            // Check if this starts a 4-byte value
+            boolean is4ByteValue = false;
+            if (!is8ByteValue && i % 4 == 0 && i + 3 < MEMORY_SIZE) {
+                // Check if at least one byte in next 4 is non-zero
+                for (int j = 0; j < 4; j++) {
+                    if (memory[i + j] != 0) {
+                        is4ByteValue = true;
+                        break;
+                    }
                 }
-                System.out.printf("] = %.0f\n", load(i));
+            }
+            
+            if (is8ByteValue) {
+                // Print 8-byte value
+                System.out.printf("Address %3d-%3d: [", i, i + 7);
+                for (int j = 0; j < 8; j++) {
+                    System.out.printf("0x%02X", memory[i + j] & 0xFF);
+                    if (j < 7) System.out.print(", ");
+                    processed[i + j] = true;
+                }
+                System.out.printf("] = %.0f (8-byte value)\n", load(i, 8));
+                i += 7; // Skip the next 7 bytes
+            } else if (is4ByteValue) {
+                // Print 4-byte value
+                System.out.printf("Address %3d-%3d: [", i, i + 3);
+                for (int j = 0; j < 4; j++) {
+                    System.out.printf("0x%02X", memory[i + j] & 0xFF);
+                    if (j < 3) System.out.print(", ");
+                    processed[i + j] = true;
+                }
+                System.out.printf("] = %.0f (4-byte value)\n", load(i, 4));
+                i += 3; // Skip the next 3 bytes
             }
         }
         System.out.println("=========================\n");
