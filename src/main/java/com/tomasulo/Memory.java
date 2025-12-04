@@ -51,12 +51,12 @@ public class Memory {
         // Convert double (treated as integer) to 8 bytes
         long intValue = (long) value;
         System.out.printf("STORE: Address=%d, Value=%.0f (0x%016X), Bytes: ", address, value, intValue);
-        
+
         // Store in big-endian order: MSB at address, LSB at address+7
         for (int i = 0; i < 8; i++) {
             memory[address + i] = (byte) ((intValue >> (56 - i * 8)) & 0xFF);
         }
-        
+
         // Print bytes in order
         for (int i = 0; i < 8; i++) {
             System.out.printf("0x%02X ", memory[address + i] & 0xFF);
@@ -148,12 +148,13 @@ public class Memory {
                     break;
                 }
             }
-            
+
             if (hasData) {
                 System.out.printf("Address %3d-%3d: [", i, i + 7);
                 for (int j = 0; j < 8 && (i + j) < MEMORY_SIZE; j++) {
                     System.out.printf("0x%02X", memory[i + j] & 0xFF);
-                    if (j < 7) System.out.print(", ");
+                    if (j < 7)
+                        System.out.print(", ");
                 }
                 System.out.printf("] = %.0f\n", load(i));
             }

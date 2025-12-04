@@ -603,7 +603,7 @@ public class TomasuloSimulator extends Application {
         }
 
         engine.getMemory().printMemory();
-        
+
         stepButton.setDisable(true);
         runButton.setDisable(true);
     }
