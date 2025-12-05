@@ -137,14 +137,11 @@ public class ExecutionEngine {
         // 1. Write Result (CDB) - select winner and broadcast
         CommonDataBus.BusEntry winner = writeResultStage();
 
-   
-
         // 3. Execute
         executeStage();
 
         // 4. Issue
         issueStage();
-
 
         if (winner != null) {
             write(winner);
@@ -597,7 +594,7 @@ public class ExecutionEngine {
                     // Determine if this is a Word store (4 bytes) or Doubleword store (8 bytes)
                     Instruction inst = buf.getInstruction();
                     boolean isWordStore = (inst.getType() == Instruction.InstructionType.SW ||
-                                          inst.getType() == Instruction.InstructionType.S_S);
+                            inst.getType() == Instruction.InstructionType.S_S);
                     int cacheLatency = cache.accessStore(buf.getAddress(), buf.getValue(), isWordStore);
                     buf.addCacheLatency(cacheLatency);
                     buf.setCacheAccessed(true);
@@ -694,7 +691,7 @@ public class ExecutionEngine {
             } else {
                 cycleLog.add("Branch NOT taken - continuing sequential execution");
             }
-            
+
             // Clear branch stall - issuing can resume after this write-back
             this.branchInFlight = false;
             cycleLog.add("Branch write-back complete - resuming issuing");
