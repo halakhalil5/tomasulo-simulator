@@ -594,7 +594,11 @@ public class ExecutionEngine {
                 }
                 // Access cache at the start of execution (first cycle only)
                 if (!buf.isCacheAccessed()) {
-                    int cacheLatency = cache.accessStore(buf.getAddress(), buf.getValue());
+                    // Determine if this is a Word store (4 bytes) or Doubleword store (8 bytes)
+                    Instruction inst = buf.getInstruction();
+                    boolean isWordStore = (inst.getType() == Instruction.InstructionType.SW ||
+                                          inst.getType() == Instruction.InstructionType.S_S);
+                    int cacheLatency = cache.accessStore(buf.getAddress(), buf.getValue(), isWordStore);
                     buf.addCacheLatency(cacheLatency);
                     buf.setCacheAccessed(true);
                     // Log cache access to cycle log

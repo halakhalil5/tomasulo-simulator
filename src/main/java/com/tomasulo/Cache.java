@@ -104,27 +104,29 @@ public class Cache {
      * Access cache for store operation
      * Returns latency (hitLatency for hit, hitLatency + missPenalty for miss)
      */
-    public int accessStore(int address, double memoryValue) {
+    public int accessStore(int address, double memoryValue, boolean isWordStore) {
         int blockOffset = address % blockSize;
         int index = (address / blockSize) % numBlocks;
         int tag = address / (blockSize * numBlocks);
+        int numBytes = isWordStore ? 4 : 8;
 
         CacheBlock block = cache.get(index);
 
         if (block.valid && block.tag == tag) {
             // Cache hit - update bytes
-            accessLog.add(String.format("Cycle: Store HIT - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d)",
-                    address, tag, index, blockOffset));
+            accessLog.add(String.format("Cycle: Store HIT - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d) [%d bytes]",
+                    address, tag, index, blockOffset, numBytes));
             // Update bytes from the value (treated as integer)
             long intValue = (long) memoryValue;
-            for (int i = 0; i < 8 && (blockOffset + i) < blockSize; i++) {
-                block.data[blockOffset + i] = (byte) ((intValue >> (56 - i * 8)) & 0xFF);
+            int shiftStart = (numBytes == 4) ? 24 : 56;
+            for (int i = 0; i < numBytes && (blockOffset + i) < blockSize; i++) {
+                block.data[blockOffset + i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
             }
             return hitLatency;
         } else {
             // Cache miss - load entire block from memory first
-            accessLog.add(String.format("Cycle: Store MISS - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d)",
-                    address, tag, index, blockOffset));
+            accessLog.add(String.format("Cycle: Store MISS - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d) [%d bytes]",
+                    address, tag, index, blockOffset, numBytes));
 
             // Calculate block start address (aligned to block size)
             int blockStartAddr = (address / blockSize) * blockSize;
@@ -142,8 +144,9 @@ public class Cache {
             }
             // Update the specific byte with new value (treated as integer)
             long intValue = (long) memoryValue;
-            for (int i = 0; i < 8 && (blockOffset + i) < blockSize; i++) {
-                block.data[blockOffset + i] = (byte) ((intValue >> (56 - i * 8)) & 0xFF);
+            int shiftStart = (numBytes == 4) ? 24 : 56;
+            for (int i = 0; i < numBytes && (blockOffset + i) < blockSize; i++) {
+                block.data[blockOffset + i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
             }
 
             return hitLatency + missPenalty;
