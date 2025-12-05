@@ -101,10 +101,12 @@ public class Cache {
     }
 
     /**
-     * Access cache for store operation
+     * Check cache for store operation and return latency
+     * On miss: loads the block into cache (making it visible in GUI)
+     * Does NOT write the store value yet - that happens in writeStoreValue()
      * Returns latency (hitLatency for hit, hitLatency + missPenalty for miss)
      */
-    public int accessStore(int address, double memoryValue, boolean isWordStore) {
+    public int checkStoreLatency(int address, boolean isWordStore) {
         int blockOffset = address % blockSize;
         int index = (address / blockSize) % numBlocks;
         int tag = address / (blockSize * numBlocks);
@@ -113,44 +115,99 @@ public class Cache {
         CacheBlock block = cache.get(index);
 
         if (block.valid && block.tag == tag) {
-            // Cache hit - update bytes
+            // Cache hit
             accessLog.add(String.format("Cycle: Store HIT - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d) [%d bytes]",
                     address, tag, index, blockOffset, numBytes));
-            // Update bytes from the value (treated as integer)
-            long intValue = (long) memoryValue;
-            int shiftStart = (numBytes == 4) ? 24 : 56;
-            for (int i = 0; i < numBytes && (blockOffset + i) < blockSize; i++) {
-                block.data[blockOffset + i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
-            }
             return hitLatency;
         } else {
-            // Cache miss - load entire block from memory first
+            // Cache miss - load block from memory (but don't write store value yet)
             accessLog.add(String.format("Cycle: Store MISS - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d) [%d bytes]",
                     address, tag, index, blockOffset, numBytes));
-
+            
             // Calculate block start address (aligned to block size)
             int blockStartAddr = (address / blockSize) * blockSize;
 
-            // Load entire block from memory, then update with new value
+            // Load entire block from memory so cache is visible in GUI
             block.valid = true;
             block.tag = tag;
             block.blockStartAddress = blockStartAddr;
 
-            // Load entire block as bytes
             if (memory != null) {
                 for (int i = 0; i < blockSize; i++) {
                     block.data[i] = memory.getByte(blockStartAddr + i);
                 }
             }
-            // Update the specific byte with new value (treated as integer)
-            long intValue = (long) memoryValue;
-            int shiftStart = (numBytes == 4) ? 24 : 56;
-            for (int i = 0; i < numBytes && (blockOffset + i) < blockSize; i++) {
-                block.data[blockOffset + i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
-            }
-
+            
             return hitLatency + missPenalty;
         }
+    }
+    
+    /**
+     * Write only the store value to cache (assumes block is already loaded)
+     * Should be called on the last cycle of store execution
+     */
+    public void writeStoreValue(int address, double memoryValue, boolean isWordStore) {
+        int blockOffset = address % blockSize;
+        int index = (address / blockSize) % numBlocks;
+        int numBytes = isWordStore ? 4 : 8;
+
+        CacheBlock block = cache.get(index);
+
+        // Update the specific bytes with new value
+        long intValue = (long) memoryValue;
+        int shiftStart = (numBytes == 4) ? 24 : 56;
+        for (int i = 0; i < numBytes && (blockOffset + i) < blockSize; i++) {
+            block.data[blockOffset + i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
+        }
+    }
+
+    /**
+     * Write data to cache for store operation
+     * Should be called AFTER checkStoreLatency
+     * Handles both cache hit (update existing block) and miss (load block then update)
+     */
+    public void writeToCache(int address, double memoryValue, boolean isWordStore) {
+        int blockOffset = address % blockSize;
+        int index = (address / blockSize) % numBlocks;
+        int tag = address / (blockSize * numBlocks);
+        int numBytes = isWordStore ? 4 : 8;
+
+        CacheBlock block = cache.get(index);
+
+        // If cache miss, load block from memory first
+        if (!block.valid || block.tag != tag) {
+            // Calculate block start address (aligned to block size)
+            int blockStartAddr = (address / blockSize) * blockSize;
+
+            // Load entire block from memory
+            block.valid = true;
+            block.tag = tag;
+            block.blockStartAddress = blockStartAddr;
+
+            if (memory != null) {
+                for (int i = 0; i < blockSize; i++) {
+                    block.data[i] = memory.getByte(blockStartAddr + i);
+                }
+            }
+        }
+
+        // Update the specific bytes with new value
+        long intValue = (long) memoryValue;
+        int shiftStart = (numBytes == 4) ? 24 : 56;
+        for (int i = 0; i < numBytes && (blockOffset + i) < blockSize; i++) {
+            block.data[blockOffset + i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
+        }
+    }
+
+    /**
+     * Access cache for store operation (combined check + write)
+     * Returns latency (hitLatency for hit, hitLatency + missPenalty for miss)
+     * This is a convenience method that calls checkStoreLatency then writeToCache
+     */
+    public int accessStore(int address, double memoryValue, boolean isWordStore) {
+        int latency = checkStoreLatency(address, isWordStore);
+        writeToCache(address, memoryValue, isWordStore);
+        return latency;
     }
 
     /**

@@ -555,12 +555,14 @@ public class ExecutionEngine {
                     buf.getInstruction().setExecStartTime(currentCycle);
                 }
                 // Access cache at the start of execution (first cycle only)
+                // Cache is updated immediately so it's visible in the GUI
                 if (!buf.isCacheAccessed()) {
                     // Use appropriate load method based on instruction type
                     Instruction inst = buf.getInstruction();
                     boolean isWord = (inst.getType() == Instruction.InstructionType.LW ||
                             inst.getType() == Instruction.InstructionType.L_S);
                     double memoryValue = isWord ? memory.loadWord(buf.getAddress()) : memory.load(buf.getAddress());
+                    // accessLoad checks hit/miss and loads block into cache immediately
                     int cacheLatency = cache.accessLoad(buf.getAddress(), memoryValue);
                     buf.addCacheLatency(cacheLatency);
                     buf.setCacheAccessed(true);
@@ -589,13 +591,15 @@ public class ExecutionEngine {
                 if (buf.getInstruction().getExecStartTime() == -1) {
                     buf.getInstruction().setExecStartTime(currentCycle);
                 }
-                // Access cache at the start of execution (first cycle only)
+                // Check cache hit/miss at the start of execution (first cycle only)
+                // On miss: loads block into cache (visible in GUI), but doesn't write store value yet
                 if (!buf.isCacheAccessed()) {
                     // Determine if this is a Word store (4 bytes) or Doubleword store (8 bytes)
                     Instruction inst = buf.getInstruction();
                     boolean isWordStore = (inst.getType() == Instruction.InstructionType.SW ||
                             inst.getType() == Instruction.InstructionType.S_S);
-                    int cacheLatency = cache.accessStore(buf.getAddress(), buf.getValue(), isWordStore);
+                    // Check latency and load block if miss - cache becomes visible in GUI
+                    int cacheLatency = cache.checkStoreLatency(buf.getAddress(), isWordStore);
                     buf.addCacheLatency(cacheLatency);
                     buf.setCacheAccessed(true);
                     // Log cache access to cycle log
@@ -606,9 +610,14 @@ public class ExecutionEngine {
                 }
                 buf.decrementCycles();
                 if (buf.isComplete()) {
-                    // Do not perform the store immediately; schedule a CDB write so the
-                    // actual memory.store and buffer clear happen in the next cycle's
-                    // writeResultStage (writes happen after execute stage).
+                    // Write store value to cache on the last cycle
+                    Instruction inst = buf.getInstruction();
+                    boolean isWordStore = (inst.getType() == Instruction.InstructionType.SW ||
+                            inst.getType() == Instruction.InstructionType.S_S);
+                    cache.writeStoreValue(buf.getAddress(), buf.getValue(), isWordStore);
+                    
+                    // Schedule a CDB write so the actual memory.store and buffer clear 
+                    // happen in the next cycle's writeResultStage
                     buf.getInstruction().setExecEndTime(currentCycle);
                     cdb.requestWrite(buf.getName(), buf.getValue(), buf.getInstruction(), issueOrder++);
                 }
