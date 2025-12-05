@@ -137,11 +137,19 @@ public class ExecutionEngine {
         // 1. Write Result (CDB) - select winner and broadcast
         CommonDataBus.BusEntry winner = writeResultStage();
 
+        // Store the winner's tag and address for issue stage checks
+        String winnerTag = (winner != null) ? winner.tag : null;
+        int winnerAddress = -1;
+        if (winner != null && winner.instruction != null && 
+            (winner.instruction.isLoad() || winner.instruction.isStore())) {
+            winnerAddress = winner.instruction.getAddress();
+        }
+
         // 3. Execute
         executeStage();
 
-        // 4. Issue
-        issueStage();
+        // 4. Issue (pass winner info to prevent issuing to same address in same cycle)
+        issueStage(winnerTag, winnerAddress);
 
         if (winner != null) {
             write(winner);
@@ -151,7 +159,7 @@ public class ExecutionEngine {
         return !isComplete();
     }
 
-    private void issueStage() {
+    private void issueStage(String winnerTag, int winnerAddress) {
         if (instructionQueue.isEmpty()) {
             return;
         }
@@ -221,7 +229,7 @@ public class ExecutionEngine {
             case LW:
             case LD:
                 // For loads, base register must be ready
-                if (instructionReadyForLoad(inst)) {
+                if (instructionReadyForLoad(inst, winnerTag, winnerAddress)) {
                     Instruction issuedInst = instructionQueue.issue();
                     if (issuedInst != null && issueLoad(issuedInst)) {
                         issuedInst.setIssueTime(currentCycle);
@@ -233,7 +241,7 @@ public class ExecutionEngine {
             case S_S:
             case SW:
             case SD:
-                if (instructionReadyForStore(inst)) {
+                if (instructionReadyForStore(inst, winnerTag, winnerAddress)) {
                     Instruction issuedInst = instructionQueue.issue();
                     if (issuedInst != null && issueStore(issuedInst)) {
                         issuedInst.setIssueTime(currentCycle);
@@ -257,7 +265,7 @@ public class ExecutionEngine {
         }
     }
 
-    private boolean instructionReadyForLoad(Instruction inst) {
+    private boolean instructionReadyForLoad(Instruction inst, String winnerTag, int winnerAddress) {
         String base = inst.getSrc1();
         // Base register must be ready and a free load buffer must exist
         if (!registerFile.getStatus(base).isEmpty())
@@ -270,12 +278,38 @@ public class ExecutionEngine {
             int offset = Integer.parseInt(inst.getSrc2());
             int address = (int) registerFile.getValue(base) + offset;
 
+            // Check if the winner (about to write back this cycle) has the same address
+            // Prevent issuing in the same cycle as write-back
+            if (winnerAddress >= 0 && winnerAddress == address) {
+                return false;
+            }
+
             // If any store buffer already holds this address, stall to preserve memory
             // ordering
             for (LoadStoreBuffer sb : storeBuffers) {
                 if (sb.isBusy() && sb.getAddress() == address)
                     return false;
             }
+            
+            // Check if any store in CDB pending writes has the same address
+            // Wait until write-back completes before issuing load to same address
+            for (CommonDataBus.BusEntry pending : cdb.getPendingWrites()) {
+                if (pending != null && pending.instruction != null && pending.instruction.isStore()) {
+                    if (pending.instruction.getAddress() == address) {
+                        return false;
+                    }
+                }
+            }
+            
+            // Check if any load in CDB pending writes has the same address
+            // Wait until write-back completes before issuing load to same address
+            // for (CommonDataBus.BusEntry pending : cdb.getPendingWrites()) {
+            //     if (pending != null && pending.instruction != null && pending.instruction.isLoad()) {
+            //         if (pending.instruction.getAddress() == address) {
+            //             return false;
+            //         }
+            //     }
+            // }
 
             return true;
         } catch (NumberFormatException ex) {
@@ -284,7 +318,7 @@ public class ExecutionEngine {
         }
     }
 
-    private boolean instructionReadyForStore(Instruction inst) {
+    private boolean instructionReadyForStore(Instruction inst, String winnerTag, int winnerAddress) {
         String base = inst.getSrc1();
         // value-to-store register is intentionally not required to be ready
         // at issue time; store buffer will record its Qi if needed.
@@ -303,13 +337,42 @@ public class ExecutionEngine {
             int offset = Integer.parseInt(inst.getSrc2());
             int address = (int) registerFile.getValue(base) + offset;
 
+            // Check if the winner (about to write back this cycle) has the same address
+            // Prevent issuing in the same cycle as write-back
+            if (winnerAddress >= 0 && winnerAddress == address) {
+                return false;
+            }
+
+            // Check if any store buffer with the same address is still busy
+            // Wait until write-back completes
             for (LoadStoreBuffer sb : storeBuffers) {
                 if (sb.isBusy() && sb.getAddress() == address)
                     return false;
             }
+            
+            // Check if any store in CDB pending writes has the same address
+            // Wait until write-back completes before issuing store to same address
+            for (CommonDataBus.BusEntry pending : cdb.getPendingWrites()) {
+                if (pending != null && pending.instruction != null && pending.instruction.isStore()) {
+                    if (pending.instruction.getAddress() == address) {
+                        return false;
+                    }
+                }
+            }
+            
             for (LoadStoreBuffer lb : loadBuffers) {
                 if (lb.isBusy() && lb.getAddress() == address)
                     return false;
+            }
+            
+            // Check if any load in CDB pending writes has the same address
+            // Wait until write-back completes before issuing store to same address
+            for (CommonDataBus.BusEntry pending : cdb.getPendingWrites()) {
+                if (pending != null && pending.instruction != null && pending.instruction.isLoad()) {
+                    if (pending.instruction.getAddress() == address) {
+                        return false;
+                    }
+                }
             }
 
             return true;
