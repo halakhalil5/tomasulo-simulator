@@ -483,7 +483,7 @@ public class TomasuloSimulator extends Application {
 
         TableColumn<CacheTableRow, String> dataCol = new TableColumn<>("Block Data");
         dataCol.setCellValueFactory(new PropertyValueFactory<>("data"));
-        dataCol.setPrefWidth(100);
+        dataCol.setPrefWidth(300);
 
         cacheTable.getColumns().addAll(indexCol, validCol, tagCol, addressCol, dataCol);
 
