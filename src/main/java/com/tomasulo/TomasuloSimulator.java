@@ -975,8 +975,9 @@ public class TomasuloSimulator extends Application {
             this.name = rs.getName();
             this.busy = rs.isBusy() ? "Yes" : "No";
             this.op = rs.getOp() != null ? rs.getOp() : "";
-            this.vj = rs.isBusy() ? String.format("%.0f", rs.getVj()) : "";
-            this.vk = rs.isBusy() ? String.format("%.0f", rs.getVk()) : "";
+            // Display with 2 decimal places to show floating-point values
+            this.vj = rs.isBusy() ? String.format("%.2f", rs.getVj()) : "";
+            this.vk = rs.isBusy() ? String.format("%.2f", rs.getVk()) : "";
             // Show "0" instead of empty string for Qj and Qk
             this.qj = (rs.getQj() != null && !rs.getQj().isEmpty()) ? rs.getQj() : "0";
             this.qk = (rs.getQk() != null && !rs.getQk().isEmpty()) ? rs.getQk() : "0";
@@ -1023,7 +1024,8 @@ public class TomasuloSimulator extends Application {
             this.name = buf.getName();
             this.busy = buf.isBusy() ? "Yes" : "No";
             this.address = buf.isBusy() ? String.valueOf(buf.getAddress()) : "";
-            this.value = buf.isBusy() && !buf.isLoad() ? String.format("%.0f", buf.getValue()) : "";
+            // Display with 2 decimal places to show floating-point values
+            this.value = buf.isBusy() && !buf.isLoad() ? String.format("%.2f", buf.getValue()) : "";
             // Show "0" instead of empty string for Q
             this.q = (buf.getQ() != null && !buf.getQ().isEmpty()) ? buf.getQ() : "0";
             this.remaining = buf.isBusy() ? String.valueOf(buf.getRemainingCycles()) : "";
@@ -1059,8 +1061,8 @@ public class TomasuloSimulator extends Application {
 
         public RegisterTableRow(String name, double value, String status) {
             this.name = name;
-            // Display as decimal integer (treated as integer, no floating-point)
-            this.value = String.format("%.0f", value);
+            // Display with 2 decimal places to show floating-point values
+            this.value = String.format("%.2f", value);
             // Show "0" instead of empty string for status (Qi)
             this.status = (status != null && !status.isEmpty()) ? status : "0";
         }
