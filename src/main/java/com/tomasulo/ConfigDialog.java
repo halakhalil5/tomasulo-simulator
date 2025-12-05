@@ -48,19 +48,19 @@ public class ConfigDialog extends Stage {
         fpLabel.setStyle("-fx-font-weight: bold;");
         grid.add(fpLabel, 0, 0, 2, 1);
 
-        grid.add(new Label("ADD.D latency:"), 0, 1);
+        grid.add(new Label("ADD latency:"), 0, 1);
         TextField addField = new TextField(String.valueOf(config.addLatency));
         grid.add(addField, 1, 1);
 
-        grid.add(new Label("SUB.D latency:"), 0, 2);
+        grid.add(new Label("SUB latency:"), 0, 2);
         TextField subField = new TextField(String.valueOf(config.subLatency));
         grid.add(subField, 1, 2);
 
-        grid.add(new Label("MUL.D latency:"), 0, 3);
+        grid.add(new Label("MUL latency:"), 0, 3);
         TextField mulField = new TextField(String.valueOf(config.mulLatency));
         grid.add(mulField, 1, 3);
 
-        grid.add(new Label("DIV.D latency:"), 0, 4);
+        grid.add(new Label("DIV latency:"), 0, 4);
         TextField divField = new TextField(String.valueOf(config.divLatency));
         grid.add(divField, 1, 4);
 
@@ -69,11 +69,11 @@ public class ConfigDialog extends Stage {
         intLabel.setStyle("-fx-font-weight: bold;");
         grid.add(intLabel, 0, 5, 2, 1);
 
-        grid.add(new Label("ADDI latency:"), 0, 6);
+        grid.add(new Label("DADDI latency:"), 0, 6);
         TextField intAddField = new TextField(String.valueOf(config.intAddLatency));
         grid.add(intAddField, 1, 6);
 
-        grid.add(new Label("SUBI latency:"), 0, 7);
+        grid.add(new Label("DSUBI latency:"), 0, 7);
         TextField intSubField = new TextField(String.valueOf(config.intSubLatency));
         grid.add(intSubField, 1, 7);
 

@@ -868,8 +868,8 @@ public class TomasuloSimulator extends Application {
         alert.setHeaderText("Tomasulo Algorithm Simulator");
         alert.setContentText("A cycle-by-cycle simulator for the Tomasulo algorithm.\n\n" +
                 "Supports:\n" +
-                "- FP operations (ADD.D, SUB.D, MUL.D, DIV.D)\n" +
-                "- Integer operations (ADDI, SUBI)\n" +
+                "- FP operations (ADD.D, ADD.S, SUB.S,SUB.D, MUL.S, MUL.D, DIV.S,DIV.D)\n" +
+                "- Integer operations (DADDI, DSUBI)\n" +
                 "- Memory operations (L.D, L.S, S.D, S.S, LW, SW)\n" +
                 "- Branch instructions (BEQ, BNE)\n" +
                 "- Configurable cache, latencies, and station sizes\n" +
