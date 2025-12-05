@@ -136,7 +136,7 @@ public class TomasuloSimulator extends Application {
         bottomSection.getChildren().addAll(logLabel, logArea);
         root.setBottom(bottomSection);
 
-        Scene scene = new Scene(root, 1000, 500);
+        Scene scene = new Scene(root, 1000, 700);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
@@ -888,7 +888,7 @@ public class TomasuloSimulator extends Application {
 
         box.getChildren().addAll(info, ta, buttons);
 
-        Scene scene = new Scene(box, 450, 300);
+        Scene scene = new Scene(box, 450, 1000);
         dialog.setScene(scene);
         dialog.showAndWait();
     }
