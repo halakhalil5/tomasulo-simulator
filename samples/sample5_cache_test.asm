@@ -11,10 +11,10 @@
 # - Addresses 512-527 map to index 0, tag 2 (same index, different tag)
 
 # Initialize base addresses in registers
-ADDI R1, R0, 0      # R1 = 0 (base address for first block)
-ADDI R2, R0, 256    # R2 = 256 (base address for second block, same index, different tag)
-ADDI R3, R0, 512    # R3 = 512 (base address for third block, same index, different tag)
-ADDI R4, R0, 128    # R4 = 128 (base address for different index)
+DADDI R1, R0, 0      # R1 = 0 (base address for first block)
+DADDI R2, R0, 256    # R2 = 256 (base address for second block, same index, different tag)
+DADDI R3, R0, 512    # R3 = 512 (base address for third block, same index, different tag)
+DADDI R4, R0, 128    # R4 = 128 (base address for different index)
 
 # Test 1: First access - CACHE MISS (index 0, tag 0)
 # Expected: Miss, loads block from memory, sets valid=Yes, tag=0, address=0x0

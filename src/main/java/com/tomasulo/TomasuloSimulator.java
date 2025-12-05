@@ -188,7 +188,14 @@ public class TomasuloSimulator extends Application {
         MenuItem sample4 = new MenuItem("New Instructions Demo (ADD.S, MUL.S, etc.)");
         sample4.setOnAction(e -> codeArea.setText(InstructionParser.getSampleProgram4()));
 
-        samplesMenu.getItems().addAll(sample1, sample2, sample3, sample4);
+        MenuItem sample5 = new MenuItem("Cache Behavior Test");
+        sample5.setOnAction(e -> loadSampleFile("sample5_cache_test.asm"));
+
+        MenuItem sample6 = new MenuItem("Cache Simple Demo");
+        sample6.setOnAction(e -> loadSampleFile("sample6_cache_simple.asm"));
+
+        samplesMenu.getItems().addAll(sample1, sample2, sample3, sample4, 
+                                       new SeparatorMenuItem(), sample5, sample6);
 
         // Help Menu
         Menu helpMenu = new Menu("Help");
@@ -561,6 +568,30 @@ public class TomasuloSimulator extends Application {
             } catch (Exception e) {
                 showAlert("Load Error", "Error loading file:\n" + e.getMessage());
             }
+        }
+    }
+
+    private void loadSampleFile(String filename) {
+        try {
+            // Try to load from samples directory
+            File sampleFile = new File("samples/" + filename);
+            if (!sampleFile.exists()) {
+                // Try relative to current directory
+                sampleFile = new File(filename);
+            }
+            
+            if (sampleFile.exists()) {
+                List<Instruction> instructions = InstructionParser.parseFile(sampleFile);
+                StringBuilder sb = new StringBuilder();
+                for (Instruction inst : instructions) {
+                    sb.append(inst.getOriginalInstruction()).append("\n");
+                }
+                codeArea.setText(sb.toString());
+            } else {
+                showAlert("File Not Found", "Sample file not found: " + filename);
+            }
+        } catch (Exception e) {
+            showAlert("Load Error", "Error loading sample file:\n" + e.getMessage());
         }
     }
 

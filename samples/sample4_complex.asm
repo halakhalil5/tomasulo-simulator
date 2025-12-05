@@ -1,7 +1,7 @@
 # Complex example with multiple operation types
 # Initialize some addresses
-ADDI R1, R0, 100     # Base address 1
-ADDI R2, R0, 200     # Base address 2
+DADDI R1, R0, 100     # Base address 1
+DADDI R2, R0, 200     # Base address 2
 
 # Load values
 L.D F0, 0(R1)
@@ -15,8 +15,8 @@ SUB.D F8, F6, F2     # RAW: depends on F6, F2
 DIV.D F10, F8, F4    # RAW: depends on F8, F4
 
 # Integer operations
-ADDI R4, R3, 10
-SUBI R5, R4, 5
+DADDI R4, R3, 10
+DSUBI R5, R4, 5
 
 # More loads/stores
 L.S F12, 16(R1)
