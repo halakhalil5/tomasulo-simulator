@@ -325,18 +325,43 @@ public class TomasuloSimulator extends Application {
 
         Label loadLabel = new Label("Load Buffers:");
         loadLabel.setStyle("-fx-font-weight: bold;");
-        loadTable = createLSTable();
+        loadTable = createLoadTable();
 
         Label storeLabel = new Label("Store Buffers:");
         storeLabel.setStyle("-fx-font-weight: bold;");
-        storeTable = createLSTable();
+        storeTable = createStoreTable();
 
         box.getChildren().addAll(loadLabel, loadTable, storeLabel, storeTable);
 
         return box;
     }
 
-    private TableView<LSBufferTableRow> createLSTable() {
+    private TableView<LSBufferTableRow> createLoadTable() {
+        TableView<LSBufferTableRow> table = new TableView<>();
+
+        TableColumn<LSBufferTableRow, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        nameCol.setPrefWidth(80);
+
+        TableColumn<LSBufferTableRow, String> busyCol = new TableColumn<>("Busy");
+        busyCol.setCellValueFactory(new PropertyValueFactory<>("busy"));
+        busyCol.setPrefWidth(60);
+
+        TableColumn<LSBufferTableRow, String> addressCol = new TableColumn<>("Address");
+        addressCol.setCellValueFactory(new PropertyValueFactory<>("address"));
+        addressCol.setPrefWidth(100);
+
+        TableColumn<LSBufferTableRow, String> cyclesCol = new TableColumn<>("Remaining");
+        cyclesCol.setCellValueFactory(new PropertyValueFactory<>("remaining"));
+        cyclesCol.setPrefWidth(80);
+
+        table.getColumns().addAll(nameCol, busyCol, addressCol, cyclesCol);
+        table.setMaxHeight(200);
+
+        return table;
+    }
+
+    private TableView<LSBufferTableRow> createStoreTable() {
         TableView<LSBufferTableRow> table = new TableView<>();
 
         TableColumn<LSBufferTableRow, String> nameCol = new TableColumn<>("Name");
@@ -952,8 +977,9 @@ public class TomasuloSimulator extends Application {
             this.op = rs.getOp() != null ? rs.getOp() : "";
             this.vj = rs.isBusy() ? String.format("%.0f", rs.getVj()) : "";
             this.vk = rs.isBusy() ? String.format("%.0f", rs.getVk()) : "";
-            this.qj = rs.getQj() != null ? rs.getQj() : "";
-            this.qk = rs.getQk() != null ? rs.getQk() : "";
+            // Show "0" instead of empty string for Qj and Qk
+            this.qj = (rs.getQj() != null && !rs.getQj().isEmpty()) ? rs.getQj() : "0";
+            this.qk = (rs.getQk() != null && !rs.getQk().isEmpty()) ? rs.getQk() : "0";
             this.remaining = rs.isBusy() ? String.valueOf(rs.getRemainingCycles()) : "";
         }
 
@@ -998,7 +1024,8 @@ public class TomasuloSimulator extends Application {
             this.busy = buf.isBusy() ? "Yes" : "No";
             this.address = buf.isBusy() ? String.valueOf(buf.getAddress()) : "";
             this.value = buf.isBusy() && !buf.isLoad() ? String.format("%.0f", buf.getValue()) : "";
-            this.q = buf.getQ() != null ? buf.getQ() : "";
+            // Show "0" instead of empty string for Q
+            this.q = (buf.getQ() != null && !buf.getQ().isEmpty()) ? buf.getQ() : "0";
             this.remaining = buf.isBusy() ? String.valueOf(buf.getRemainingCycles()) : "";
         }
 
@@ -1034,7 +1061,8 @@ public class TomasuloSimulator extends Application {
             this.name = name;
             // Display as decimal integer (treated as integer, no floating-point)
             this.value = String.format("%.0f", value);
-            this.status = status != null ? status : "";
+            // Show "0" instead of empty string for status (Qi)
+            this.status = (status != null && !status.isEmpty()) ? status : "0";
         }
 
         public String getName() {

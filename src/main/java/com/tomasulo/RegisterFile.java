@@ -34,6 +34,11 @@ public class RegisterFile {
     }
 
     public void setValue(String register, double value) {
+        // R0 is always 0 and cannot be changed
+        if (register.equals("R0")) {
+            return;
+        }
+        
         if (register.startsWith("F")) {
             floatRegisters.put(register, value);
         } else {
@@ -46,6 +51,11 @@ public class RegisterFile {
     }
 
     public void setStatus(String register, String tag) {
+        // R0 is always 0 and cannot have a status tag
+        if (register.equals("R0")) {
+            return;
+        }
+        
         registerStatus.put(register, tag);
     }
 
