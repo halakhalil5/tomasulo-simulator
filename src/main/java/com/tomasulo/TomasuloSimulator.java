@@ -194,8 +194,8 @@ public class TomasuloSimulator extends Application {
         MenuItem sample6 = new MenuItem("Cache Simple Demo");
         sample6.setOnAction(e -> loadSampleFile("sample6_cache_simple.asm"));
 
-        samplesMenu.getItems().addAll(sample1, sample2, sample3, sample4, 
-                                       new SeparatorMenuItem(), sample5, sample6);
+        samplesMenu.getItems().addAll(sample1, sample2, sample3, sample4,
+                new SeparatorMenuItem(), sample5, sample6);
 
         // Help Menu
         Menu helpMenu = new Menu("Help");
@@ -604,7 +604,7 @@ public class TomasuloSimulator extends Application {
                 // Try relative to current directory
                 sampleFile = new File(filename);
             }
-            
+
             if (sampleFile.exists()) {
                 List<Instruction> instructions = InstructionParser.parseFile(sampleFile);
                 StringBuilder sb = new StringBuilder();
@@ -1063,7 +1063,8 @@ public class TomasuloSimulator extends Application {
             this.name = name;
             // Display floating-point values intelligently
             // For integer registers (R*): show as integer if no fractional part
-            // For float registers (F*): show in scientific notation if large, else with decimals
+            // For float registers (F*): show in scientific notation if large, else with
+            // decimals
             if (this.name != null && this.name.startsWith("R")) {
                 // Integer register - show as integer
                 this.value = String.format("%.0f", value);
