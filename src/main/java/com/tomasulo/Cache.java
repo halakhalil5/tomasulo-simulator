@@ -61,38 +61,34 @@ public class Cache {
     }
 
     /**
-     * Access cache for load operation
+     * Access cache for load operation (NO spatial locality - exact address range)
      * Returns latency (hitLatency for hit, hitLatency + missPenalty for miss)
      */
     public int accessLoad(int address, double memoryValue) {
-        int blockOffset = address % blockSize;
         int index = (address / blockSize) % numBlocks;
         int tag = address / (blockSize * numBlocks);
 
         CacheBlock block = cache.get(index);
 
-        if (block.valid && block.tag == tag) {
-            // Cache hit
-            accessLog.add(String.format("Cycle: Load HIT - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d)",
-                    address, tag, index, blockOffset));
+        if (block.valid && block.tag == tag && block.blockStartAddress == address) {
+            // Cache hit - exact address match
+            accessLog.add(String.format("Cycle: Load HIT - Addr: 0x%X (Tag: %d, Index: %d)",
+                    address, tag, index));
             return hitLatency;
         } else {
-            // Cache miss - load entire block from memory
-            accessLog.add(String.format("Cycle: Load MISS - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d)",
-                    address, tag, index, blockOffset));
+            // Cache miss - load exact bytes from access address (no block alignment)
+            accessLog.add(String.format("Cycle: Load MISS - Addr: 0x%X (Tag: %d, Index: %d)",
+                    address, tag, index));
 
-            // Calculate block start address (aligned to block size)
-            int blockStartAddr = (address / blockSize) * blockSize;
-
-            // Load entire block from memory
+            // Store exact access address (no alignment)
             block.valid = true;
             block.tag = tag;
-            block.blockStartAddress = blockStartAddr;
+            block.blockStartAddress = address;
 
-            // Load entire block as individual bytes
+            // Load exact blockSize bytes starting from access address
             if (memory != null) {
                 for (int i = 0; i < blockSize; i++) {
-                    block.data[i] = memory.getByte(blockStartAddr + i);
+                    block.data[i] = memory.getByte(address + i);
                 }
             }
 
@@ -101,40 +97,37 @@ public class Cache {
     }
 
     /**
-     * Check cache for store operation and return latency
-     * On miss: loads the block into cache (making it visible in GUI)
+     * Check cache for store operation and return latency (NO spatial locality)
+     * On miss: loads exact bytes from access address (making it visible in GUI)
      * Does NOT write the store value yet - that happens in writeStoreValue()
      * Returns latency (hitLatency for hit, hitLatency + missPenalty for miss)
      */
     public int checkStoreLatency(int address, boolean isWordStore) {
-        int blockOffset = address % blockSize;
         int index = (address / blockSize) % numBlocks;
         int tag = address / (blockSize * numBlocks);
         int numBytes = isWordStore ? 4 : 8;
 
         CacheBlock block = cache.get(index);
 
-        if (block.valid && block.tag == tag) {
-            // Cache hit
-            accessLog.add(String.format("Cycle: Store HIT - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d) [%d bytes]",
-                    address, tag, index, blockOffset, numBytes));
+        if (block.valid && block.tag == tag && block.blockStartAddress == address) {
+            // Cache hit - exact address match
+            accessLog.add(String.format("Cycle: Store HIT - Addr: 0x%X (Tag: %d, Index: %d) [%d bytes]",
+                    address, tag, index, numBytes));
             return hitLatency;
         } else {
-            // Cache miss - load block from memory (but don't write store value yet)
-            accessLog.add(String.format("Cycle: Store MISS - Addr: 0x%X (Tag: %d, Index: %d, Offset: %d) [%d bytes]",
-                    address, tag, index, blockOffset, numBytes));
+            // Cache miss - load exact bytes from access address (no block alignment)
+            accessLog.add(String.format("Cycle: Store MISS - Addr: 0x%X (Tag: %d, Index: %d) [%d bytes]",
+                    address, tag, index, numBytes));
             
-            // Calculate block start address (aligned to block size)
-            int blockStartAddr = (address / blockSize) * blockSize;
-
-            // Load entire block from memory so cache is visible in GUI
+            // Store exact access address (no alignment)
             block.valid = true;
             block.tag = tag;
-            block.blockStartAddress = blockStartAddr;
+            block.blockStartAddress = address;
 
+            // Load exact blockSize bytes starting from access address
             if (memory != null) {
                 for (int i = 0; i < blockSize; i++) {
-                    block.data[i] = memory.getByte(blockStartAddr + i);
+                    block.data[i] = memory.getByte(address + i);
                 }
             }
             
@@ -147,55 +140,51 @@ public class Cache {
      * Should be called on the last cycle of store execution
      */
     public void writeStoreValue(int address, double memoryValue, boolean isWordStore) {
-        int blockOffset = address % blockSize;
         int index = (address / blockSize) % numBlocks;
         int numBytes = isWordStore ? 4 : 8;
 
         CacheBlock block = cache.get(index);
 
-        // Update the specific bytes with new value
+        // Update bytes starting from position 0 (since we store exact address range)
         long intValue = (long) memoryValue;
         int shiftStart = (numBytes == 4) ? 24 : 56;
-        for (int i = 0; i < numBytes && (blockOffset + i) < blockSize; i++) {
-            block.data[blockOffset + i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
+        for (int i = 0; i < numBytes && i < blockSize; i++) {
+            block.data[i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
         }
     }
 
     /**
-     * Write data to cache for store operation
+     * Write data to cache for store operation (NO spatial locality)
      * Should be called AFTER checkStoreLatency
-     * Handles both cache hit (update existing block) and miss (load block then update)
+     * Handles both cache hit (update existing block) and miss (load exact bytes then update)
      */
     public void writeToCache(int address, double memoryValue, boolean isWordStore) {
-        int blockOffset = address % blockSize;
         int index = (address / blockSize) % numBlocks;
         int tag = address / (blockSize * numBlocks);
         int numBytes = isWordStore ? 4 : 8;
 
         CacheBlock block = cache.get(index);
 
-        // If cache miss, load block from memory first
-        if (!block.valid || block.tag != tag) {
-            // Calculate block start address (aligned to block size)
-            int blockStartAddr = (address / blockSize) * blockSize;
-
-            // Load entire block from memory
+        // If cache miss, load exact bytes from access address (no alignment)
+        if (!block.valid || block.tag != tag || block.blockStartAddress != address) {
+            // Store exact access address (no alignment)
             block.valid = true;
             block.tag = tag;
-            block.blockStartAddress = blockStartAddr;
+            block.blockStartAddress = address;
 
+            // Load exact blockSize bytes starting from access address
             if (memory != null) {
                 for (int i = 0; i < blockSize; i++) {
-                    block.data[i] = memory.getByte(blockStartAddr + i);
+                    block.data[i] = memory.getByte(address + i);
                 }
             }
         }
 
-        // Update the specific bytes with new value
+        // Update bytes starting from position 0 (since we store exact address range)
         long intValue = (long) memoryValue;
         int shiftStart = (numBytes == 4) ? 24 : 56;
-        for (int i = 0; i < numBytes && (blockOffset + i) < blockSize; i++) {
-            block.data[blockOffset + i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
+        for (int i = 0; i < numBytes && i < blockSize; i++) {
+            block.data[i] = (byte) ((intValue >> (shiftStart - i * 8)) & 0xFF);
         }
     }
 
