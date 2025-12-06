@@ -1061,8 +1061,22 @@ public class TomasuloSimulator extends Application {
 
         public RegisterTableRow(String name, double value, String status) {
             this.name = name;
-            // Display with 2 decimal places to show floating-point values
-            this.value = String.format("%.2f", value);
+            // Display floating-point values intelligently
+            // For integer registers (R*): show as integer if no fractional part
+            // For float registers (F*): show in scientific notation if large, else with decimals
+            if (this.name != null && this.name.startsWith("R")) {
+                // Integer register - show as integer
+                this.value = String.format("%.0f", value);
+            } else {
+                // Float register - show with appropriate precision
+                if (Math.abs(value) >= 1e6 || (Math.abs(value) < 1e-2 && value != 0)) {
+                    // Use scientific notation for very large or very small numbers
+                    this.value = String.format("%.6e", value);
+                } else {
+                    // Use decimal format for normal-sized numbers
+                    this.value = String.format("%.6f", value);
+                }
+            }
             // Show "0" instead of empty string for status (Qi)
             this.status = (status != null && !status.isEmpty()) ? status : "0";
         }
