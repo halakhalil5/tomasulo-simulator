@@ -118,7 +118,7 @@ public class Cache {
             // Cache miss - load exact bytes from access address (no block alignment)
             accessLog.add(String.format("Cycle: Store MISS - Addr: 0x%X (Tag: %d, Index: %d) [%d bytes]",
                     address, tag, index, numBytes));
-            
+
             // Store exact access address (no alignment)
             block.valid = true;
             block.tag = tag;
@@ -130,11 +130,11 @@ public class Cache {
                     block.data[i] = memory.getByte(address + i);
                 }
             }
-            
+
             return hitLatency + missPenalty;
         }
     }
-    
+
     /**
      * Write only the store value to cache (assumes block is already loaded)
      * Should be called on the last cycle of store execution
@@ -156,7 +156,8 @@ public class Cache {
     /**
      * Write data to cache for store operation (NO spatial locality)
      * Should be called AFTER checkStoreLatency
-     * Handles both cache hit (update existing block) and miss (load exact bytes then update)
+     * Handles both cache hit (update existing block) and miss (load exact bytes
+     * then update)
      */
     public void writeToCache(int address, double memoryValue, boolean isWordStore) {
         int index = (address / blockSize) % numBlocks;
